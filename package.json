@@ -6,7 +6,7 @@
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
-		"test": "vitest",
+		"test": "CI=true vitest",
 		"cf-typegen": "wrangler types"
 	},
 	"devDependencies": {
@@ -15,5 +15,8 @@
 		"typescript": "^5.5.2",
 		"vitest": "~3.0.7",
 		"wrangler": "^4.14.4"
+	},
+	"dependencies": {
+		"date-fns-tz": "^3.2.0"
 	}
 }

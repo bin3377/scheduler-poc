@@ -1,0 +1,359 @@
+[
+  {
+    "stateCode": "AL",
+    "state": "Alabama",
+    "zipcodeStart": 35004,
+    "zipcodeEnd": 36925,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "AK",
+    "state": "Alaska",
+    "zipcodeStart": 99501,
+    "zipcodeEnd": 99950,
+    "timezoneId": "America/Anchorage"
+  },
+  {
+    "stateCode": "AZ",
+    "state": "Arizona",
+    "zipcodeStart": 85001,
+    "zipcodeEnd": 86556,
+    "timezoneId": "America/Phoenix"
+  },
+  {
+    "stateCode": "AR",
+    "state": "Arkansas",
+    "zipcodeStart": 71601,
+    "zipcodeEnd": 72959,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "CA",
+    "state": "California",
+    "zipcodeStart": 90001,
+    "zipcodeEnd": 96162,
+    "timezoneId": "America/Los_Angeles"
+  },
+  {
+    "stateCode": "CO",
+    "state": "Colorado",
+    "zipcodeStart": 80001,
+    "zipcodeEnd": 81658,
+    "timezoneId": "America/Phoenix"
+  },
+  {
+    "stateCode": "CT",
+    "state": "Connecticut",
+    "zipcodeStart": 6001,
+    "zipcodeEnd": 6928,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "DE",
+    "state": "Delaware",
+    "zipcodeStart": 19701,
+    "zipcodeEnd": 19980,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "FL",
+    "state": "Florida",
+    "zipcodeStart": 32003,
+    "zipcodeEnd": 34997,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "GA",
+    "state": "Georgia",
+    "zipcodeStart": 30002,
+    "zipcodeEnd": 39901,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "HI",
+    "state": "Hawaii",
+    "zipcodeStart": 96701,
+    "zipcodeEnd": 96898,
+    "timezoneId": "Pacific/Tahiti"
+  },
+  {
+    "stateCode": "ID",
+    "state": "Idaho",
+    "zipcodeStart": 83201,
+    "zipcodeEnd": 83877,
+    "timezoneId": "America/Phoenix"
+  },
+  {
+    "stateCode": "IL",
+    "state": "Illinois",
+    "zipcodeStart": 60001,
+    "zipcodeEnd": 62999,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "IN",
+    "state": "Indiana",
+    "zipcodeStart": 46001,
+    "zipcodeEnd": 47997,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "IA",
+    "state": "Iowa",
+    "zipcodeStart": 50001,
+    "zipcodeEnd": 52809,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "KS",
+    "state": "Kansas",
+    "zipcodeStart": 66002,
+    "zipcodeEnd": 67954,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "KY",
+    "state": "Kentucky",
+    "zipcodeStart": 40003,
+    "zipcodeEnd": 42788,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "LA",
+    "state": "Louisiana",
+    "zipcodeStart": 70001,
+    "zipcodeEnd": 71497,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "ME",
+    "state": "Maine",
+    "zipcodeStart": 3901,
+    "zipcodeEnd": 4992,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "MD",
+    "state": "Maryland",
+    "zipcodeStart": 20588,
+    "zipcodeEnd": 21930,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "MA",
+    "state": "Massachusetts",
+    "zipcodeStart": 1001,
+    "zipcodeEnd": 5544,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "MI",
+    "state": "Michigan",
+    "zipcodeStart": 48001,
+    "zipcodeEnd": 49971,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "MN",
+    "state": "Minnesota",
+    "zipcodeStart": 55001,
+    "zipcodeEnd": 56763,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "MS",
+    "state": "Mississippi",
+    "zipcodeStart": 38601,
+    "zipcodeEnd": 39776,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "MO",
+    "state": "Missouri",
+    "zipcodeStart": 63001,
+    "zipcodeEnd": 65899,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "MT",
+    "state": "Montana",
+    "zipcodeStart": 59001,
+    "zipcodeEnd": 59937,
+    "timezoneId": "America/Phoenix"
+  },
+  {
+    "stateCode": "NE",
+    "state": "Nebraska",
+    "zipcodeStart": 68001,
+    "zipcodeEnd": 69367,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "NV",
+    "state": "Nevada",
+    "zipcodeStart": 88901,
+    "zipcodeEnd": 89883,
+    "timezoneId": "America/Los_Angeles"
+  },
+  {
+    "stateCode": "NH",
+    "state": "New Hampshire",
+    "zipcodeStart": 3031,
+    "zipcodeEnd": 3897,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "NJ",
+    "state": "New Jersey",
+    "zipcodeStart": 7001,
+    "zipcodeEnd": 8989,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "NM",
+    "state": "New Mexico",
+    "zipcodeStart": 87001,
+    "zipcodeEnd": 88439,
+    "timezoneId": "America/Phoenix"
+  },
+  {
+    "stateCode": "NY",
+    "state": "New York",
+    "zipcodeStart": 501,
+    "zipcodeEnd": 14925,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "NC",
+    "state": "North Carolina",
+    "zipcodeStart": 27006,
+    "zipcodeEnd": 28909,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "ND",
+    "state": "North Dakota",
+    "zipcodeStart": 58001,
+    "zipcodeEnd": 58856,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "OH",
+    "state": "Ohio",
+    "zipcodeStart": 43001,
+    "zipcodeEnd": 45999,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "OK",
+    "state": "Oklahoma",
+    "zipcodeStart": 73001,
+    "zipcodeEnd": 74966,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "OR",
+    "state": "Oregon",
+    "zipcodeStart": 97001,
+    "zipcodeEnd": 97920,
+    "timezoneId": "America/Los_Angeles"
+  },
+  {
+    "stateCode": "PA",
+    "state": "Pennsylvania",
+    "zipcodeStart": 15001,
+    "zipcodeEnd": 19640,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "RI",
+    "state": "Rhode Island",
+    "zipcodeStart": 2801,
+    "zipcodeEnd": 2940,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "SC",
+    "state": "South Carolina",
+    "zipcodeStart": 29001,
+    "zipcodeEnd": 29945,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "SD",
+    "state": "South Dakota",
+    "zipcodeStart": 57001,
+    "zipcodeEnd": 57799,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "TN",
+    "state": "Tennessee",
+    "zipcodeStart": 37010,
+    "zipcodeEnd": 38589,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "TX",
+    "state": "Texas",
+    "zipcodeStart": 73301,
+    "zipcodeEnd": 88595,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "UT",
+    "state": "Utah",
+    "zipcodeStart": 84001,
+    "zipcodeEnd": 84791,
+    "timezoneId": "America/Phoenix"
+  },
+  {
+    "stateCode": "VT",
+    "state": "Vermont",
+    "zipcodeStart": 5001,
+    "zipcodeEnd": 5907,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "VA",
+    "state": "Virginia",
+    "zipcodeStart": 20101,
+    "zipcodeEnd": 24658,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "WA",
+    "state": "Washington",
+    "zipcodeStart": 98001,
+    "zipcodeEnd": 99403,
+    "timezoneId": "America/Los_Angeles"
+  },
+  {
+    "stateCode": "WV",
+    "state": "West Virginia",
+    "zipcodeStart": 24701,
+    "zipcodeEnd": 26886,
+    "timezoneId": "America/New_York"
+  },
+  {
+    "stateCode": "WI",
+    "state": "Wisconsin",
+    "zipcodeStart": 53001,
+    "zipcodeEnd": 54990,
+    "timezoneId": "America/Chicago"
+  },
+  {
+    "stateCode": "WY",
+    "state": "Wyoming",
+    "zipcodeStart": 82001,
+    "zipcodeEnd": 83414,
+    "timezoneId": "America/Phoenix"
+  },
+  {
+    "stateCode": "DC",
+    "state": "District of Columbia",
+    "zipcodeStart": 20001,
+    "zipcodeEnd": 20599,
+    "timezoneId": "America/New_York"
+  }
+]
