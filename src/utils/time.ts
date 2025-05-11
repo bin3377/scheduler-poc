@@ -10,7 +10,68 @@ interface TimezoneEntry {
   timezoneId: string;
 }
 
-export function getTimeZoneByZipcode(zipcode: number): string {
+/**
+ * GetDate object from date/time/address combination.
+ * @param dateStr A string to present date like "August 27, 2024".
+ * @param timeStr A string to present time in the day like "08:00".
+ * @param address A string to present address like "17815 Ventura Boulevard, Encino, CA 91316".
+ * @returns The Date object in the correct time zone.
+ * @throws Error if zipcode cannot be extracted, timezone not found, or date/time parsing fails.
+ */
+export function getDateByDateTimeAddress(dateStr: string, timeStr: string, address: string): Date {
+  // Extract zipcode from address
+  const addressParts = address.split(' ');
+  let potentialZip = addressParts[addressParts.length - 1];
+  let zipcode: number | null = null;
+
+  if (potentialZip && /^\d{5}$/.test(potentialZip)) {
+    zipcode = parseInt(potentialZip, 10);
+  }
+
+  if (zipcode === null) {
+    throw new Error(`Could not extract zipcode from address: "${address}".`);
+  }
+
+  const timezoneId = getTimeZoneByZipcode(zipcode);
+  if (!timezoneId) {
+    throw new Error(`Could not find timezone for zipcode: "${zipcode}" from address: "${address}".`);
+  }
+
+  // Parse timeStr ("HH:mm")
+  let [hoursStr, minutesStr] = timeStr.split(':');
+  const hours = parseInt(hoursStr, 10);
+  const minutes = parseInt(minutesStr, 10);
+
+  // Combine dateStr and parsed time. dateStr is "Month Day, Year"
+  // fromZonedTime expects a string like "YYYY-MM-DDTHH:mm:ss" or a Date object.
+  // Let's create a Date object first from dateStr and then set time.
+  const baseDate = new Date(dateStr); // e.g., "August 27, 2024"
+  if (isNaN(baseDate.getTime())) {
+    throw new Error(`Invalid dateStr: "${dateStr}".`);
+  }
+
+  // Create a new date object in UTC using parts, then convert from the target timezone
+  // This avoids issues with local system timezone affecting intermediate Date objects.
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth(); // 0-indexed
+  const day = baseDate.getDate();
+
+  // Construct the date string in ISO-like format for fromZonedTime
+  // YYYY-MM-DDTHH:mm:ss
+  const isoDateTimeStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+
+  try {
+    const zonedDate = fromZonedTime(isoDateTimeStr, timezoneId);
+    if (isNaN(zonedDate.getTime())) {
+      throw new Error(`Could not create zoned date for: "${isoDateTimeStr}" in timezone "${timezoneId}".`);
+    }
+    return zonedDate;
+  } catch (e: any) {
+    throw new Error(`Error in fromZonedTime for "${isoDateTimeStr}", timezone "${timezoneId}": ${e.message}`);
+  }
+}
+
+function getTimeZoneByZipcode(zipcode: number): string {
   const mapping = timezoneMapping as TimezoneEntry[];
   for (const entry of mapping) {
     if (zipcode >= entry.zipcodeStart && zipcode <= entry.zipcodeEnd) {
@@ -18,38 +79,4 @@ export function getTimeZoneByZipcode(zipcode: number): string {
     }
   }
   return ""; // Return empty string if no timezone is found
-}
-
-export function getDateByTimeStringAndZipcode(timeString: string, zipcode: number): Date | null {
-  const timezoneId = getTimeZoneByZipcode(zipcode);
-  if (!timezoneId) {
-    return null;
-  }
-
-  const longString = toLongDateString(timeString);
-  if (!longString) {
-    return null;
-  }
-
-  const date = fromZonedTime(longString, timezoneId);
-  if (isNaN(+date)) {
-    return null;
-  }
-  return date;
-}
-
-function toLongDateString(timeString: string): string | null {
-  const match = timeString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})\s+(\d{1,2}):(\d{2})$/);
-  if (!match) {
-    return null; // Invalid time string format
-  }
-
-  const [, monthStr, dayStr, yearStr, hourStr, minuteStr] = match;
-  const pMonth = parseInt(monthStr, 10).toLocaleString('en-us', {minimumIntegerDigits: 2});
-  const pDay = parseInt(dayStr, 10).toLocaleString('en-us', {minimumIntegerDigits: 2});
-  const pYear = (parseInt(yearStr, 10) + 2000).toLocaleString('en-us', {minimumIntegerDigits: 2, useGrouping: false});
-  const pHour = parseInt(hourStr, 10).toLocaleString('en-us', {minimumIntegerDigits: 2});
-  const pMinute = parseInt(minuteStr, 10).toLocaleString('en-us', {minimumIntegerDigits: 2});
-
-  return `${pYear}-${pMonth}-${pDay}T${pHour}:${pMinute}:00`
 }

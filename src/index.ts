@@ -11,37 +11,9 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
-import { GetTrip } from '../src/utils/map';
+import { GetTrip, TripQuery } from '../src/utils/map'; // Added TripQuery import
+import { getTripQueriesFromAutoScheduleRequest } from '../src/utils/scheduler'
 import { AutoScheduleRequest } from './interfaces'; // Added import
-
-// Basic validation function for AutoScheduleRequest
-function isValidAutoScheduleRequest(data: any): data is AutoScheduleRequest {
-	if (!data || typeof data !== 'object') {
-		return false;
-	}
-	const { date, bookings, before_pickup_time, after_pickup_time, pickup_loading_time, dropoff_unloading_time } = data;
-	if (typeof date !== 'string' || !Array.isArray(bookings)) {
-		return false;
-	}
-	// Add more specific checks for bookings array elements and other properties if needed
-	if (
-		(before_pickup_time !== null && typeof before_pickup_time !== 'number') ||
-		(after_pickup_time !== null && typeof after_pickup_time !== 'number') ||
-		(pickup_loading_time !== null && typeof pickup_loading_time !== 'number') ||
-		(dropoff_unloading_time !== null && typeof dropoff_unloading_time !== 'number')
-	) {
-		return false;
-	}
-	if (!bookings.every(isValidBooking)) {
-		return false;
-	}
-	return true;
-}
-
-function isValidBooking(booking: any): boolean {
-	// Basic check, can be expanded
-	return booking && typeof booking.booking_id === 'string' && typeof booking.pickup_address === 'string' && typeof booking.dropoff_address === 'string';
-}
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -61,10 +33,11 @@ export default {
 
 async function root(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	console.log('Handling / path');
-	const q = {
+	const q: TripQuery = { // Added TripQuery type and bookingId
 		departureTime: new Date(),
 		pickupAddr: '9701 Medical Center Drive Rockville 20850',
 		dropoffAddr: '15204 Omega Drive Rockville 20850',
+		bookingId: 'test-booking-id', // Added placeholder bookingId
 	};
 
 	try {
@@ -100,19 +73,9 @@ async function autoSchedule(request: Request, env: Env, ctx: ExecutionContext): 
 
 	try {
 		const jsonData: unknown = await request.json();
+		const queries = getTripQueriesFromAutoScheduleRequest(jsonData as AutoScheduleRequest)
 
-		if (!isValidAutoScheduleRequest(jsonData)) {
-			return new Response(JSON.stringify({ error: 'Invalid request payload' }), {
-				status: 400,
-				headers: { 'Content-Type': 'application/json' },
-			});
-		}
-
-		// At this point, jsonData is validated as AutoScheduleRequest
-		// Process the valid request (e.g., save to DB, trigger scheduling logic)
-		console.log('Received valid AutoScheduleRequest:', jsonData);
-
-		return new Response(JSON.stringify({ message: 'Request received and validated successfully' }), {
+		return new Response(JSON.stringify(queries), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' },
 		});

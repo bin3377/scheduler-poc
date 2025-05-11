@@ -1,7 +1,8 @@
-interface TripQuery {
+export interface TripQuery {
   departureTime: Date;
   pickupAddr: string; // Corrected from String
   dropoffAddr: string; // Corrected from String
+  bookingId: string; // Added bookingId
 }
 
 interface TripInfo extends TripQuery {
