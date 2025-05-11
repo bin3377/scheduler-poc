@@ -11,6 +11,8 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+import { GetTrip } from '../src/utils/map';
+
 export default {
 
   async fetch(request, env, ctx) {
@@ -18,10 +20,18 @@ export default {
 		let uri = url.pathname;
 		console.log(uri);
 
+		const q = {
+			departureTime: new Date(),
+			pickupAddr: '9701 Medical Center Drive Rockville 20850',
+			dropoffAddr: '15204 Omega Drive Rockville 20850',
+  	};
+
+		const trip = await GetTrip(q, env)
+
 		const options = {
       headers: { "content-type": "application/json;charset=UTF-8" },
     };
-    return new Response(JSON.stringify(url), options);
+    return new Response(JSON.stringify(trip), options);
   },
 
 	// async fetch(request, env, ctx): Promise<Response> {
