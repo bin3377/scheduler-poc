@@ -48,7 +48,7 @@ export default {
 		const url = new URL(request.url);
 		const path = url.pathname;
 
-		switch(path) {
+		switch (path) {
 			case '/v1_webapp_auto_scheduling':
 				return await autoSchedule(request, env, ctx);
 			case '/':
@@ -83,6 +83,17 @@ async function root(request: Request, env: Env, ctx: ExecutionContext): Promise<
 }
 
 async function autoSchedule(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+	if (env.ENABLE_ORIGIN_CHECK) {
+		const origin = request.headers.get('Origin');
+		// Cast to readonly string[] to satisfy TypeScript when using .includes with a general string
+		if (!origin || !(env.ACCEPTABLE_ORIGINS as readonly string[]).includes(origin)) {
+			return new Response(JSON.stringify({ error: 'Forbidden - Invalid origin' }), {
+				status: 403,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}
+	}
+
 	if (request.method !== 'POST') {
 		return new Response('Method Not Allowed', { status: 405 });
 	}
