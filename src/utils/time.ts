@@ -33,7 +33,7 @@ export function getDateByDateTimeAddress(dateStr: string, timeStr: string, addre
   }
 
   const timezoneId = getTimeZoneByZipcode(zipcode);
-  if (!timezoneId) {
+  if (timezoneId == null) {
     throw new Error(`Could not find timezone for zipcode: "${zipcode}" from address: "${address}".`);
   }
 
@@ -71,12 +71,12 @@ export function getDateByDateTimeAddress(dateStr: string, timeStr: string, addre
   }
 }
 
-function getTimeZoneByZipcode(zipcode: number): string {
+function getTimeZoneByZipcode(zipcode: number): string | null {
   const mapping = timezoneMapping as TimezoneEntry[];
   for (const entry of mapping) {
     if (zipcode >= entry.zipcodeStart && zipcode <= entry.zipcodeEnd) {
       return entry.timezoneId;
     }
   }
-  return ""; // Return empty string if no timezone is found
+  return null;
 }
