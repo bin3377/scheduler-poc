@@ -12,7 +12,7 @@
  */
 
 import { GetTrip, TripQuery } from '../src/utils/map'; // Added TripQuery import
-import { getTripQueriesFromAutoScheduleRequest } from '../src/utils/scheduler'
+import { getSortedBookingQueries } from '../src/utils/scheduler'
 import { AutoScheduleRequest } from './interfaces'; // Added import
 
 export default {
@@ -73,9 +73,16 @@ async function autoSchedule(request: Request, env: Env, ctx: ExecutionContext): 
 
 	try {
 		const jsonData: unknown = await request.json();
-		const queries = getTripQueriesFromAutoScheduleRequest(jsonData as AutoScheduleRequest)
+		const queries = getSortedBookingQueries(jsonData as AutoScheduleRequest)
 
-		return new Response(JSON.stringify(queries), {
+		// for (const [k, v] of queries) {
+		// 	console.debug(k, v.length)
+		// 	for (const q of v) {
+		// 		console.debug(JSON.stringify(q))
+		// 	}
+	  // }
+
+		return new Response(JSON.stringify(Object.fromEntries(queries)), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' },
 		});
