@@ -14,10 +14,35 @@ export interface LegInfo {
   durationInSec?: number;
 }
 
-
 export async function DoSchedule(request: AutoScheduleRequest): Promise<string> {
+  config.request = request;
   const map = await getSortedLegs(request);
   return JSON.stringify(Object.fromEntries(map));
+}
+
+namespace config {
+  
+  export var request: AutoScheduleRequest 
+  
+  export const isDebug = (): boolean => {
+    return request.debug ?? globalThis.currentEnv.DEBUG_MODE
+  }
+
+  export const beforePickupInSec = (): number => {
+    return request.before_pickup_time ?? globalThis.currentEnv.DEFAULT_BEFORE_PICKUP_TIME;
+  }
+
+  export const afterPickupInSec = (): number => {
+    return request.after_pickup_time ?? globalThis.currentEnv.DEFAULT_AFTER_PICKUP_TIME;
+  }
+
+  export const pickupLoadingInSec = (): number => {
+    return request.pickup_loading_time ?? globalThis.currentEnv.DEFAULT_PICKUP_LOADING_TIME;
+  }
+  
+  export const dropoffUnloadingInSec = (): number => {
+    return request.dropoff_unloading_time ?? globalThis.currentEnv.DEFAULT_DROPOFF_UNLOADING_TIME;
+  }
 }
 
 async function getSortedLegs(request: AutoScheduleRequest): Promise<Map<BookingCategory, Array<LegInfo>>> {
@@ -27,7 +52,6 @@ async function getSortedLegs(request: AutoScheduleRequest): Promise<Map<BookingC
   for (const booking of request.bookings) {
     const category = getBookingCategory(booking);
     const leg = await getLegInfo(dateStr, booking);
-    // console.log(query)
 
     if (!allLegs.has(category)) {
       allLegs.set(category, []);
@@ -38,6 +62,10 @@ async function getSortedLegs(request: AutoScheduleRequest): Promise<Map<BookingC
   // Sort queries by departureTime
   for (const category of allLegs.keys()) {
     allLegs.get(category)!.sort((lhs, rhs) => lhs.departureTime.getTime() - rhs.departureTime.getTime());
+  }
+
+  if (config.isDebug()) {
+    console.debug('Sorted legs:', JSON.stringify(Object.fromEntries(allLegs)));
   }
 
   return allLegs
