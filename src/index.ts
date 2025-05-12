@@ -11,12 +11,19 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
-import { GetTrip, TripQuery } from '../src/utils/map'; // Added TripQuery import
-import { getSortedBookingQueries } from '../src/utils/scheduler'
+import { DoSchedule } from '../src/utils/scheduler'
 import { AutoScheduleRequest } from './interfaces'; // Added import
+
+declare global {
+  var currentEnv: Env;
+	var currentCtx: ExecutionContext;
+}
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		globalThis.currentEnv = env
+		globalThis.currentCtx = ctx
+
 		const url = new URL(request.url);
 		const path = url.pathname;
 
@@ -33,22 +40,14 @@ export default {
 
 async function root(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 	console.log('Handling / path');
-	const q: TripQuery = { // Added TripQuery type and bookingId
-		departureTime: new Date(),
-		pickupAddr: '9701 Medical Center Drive Rockville 20850',
-		dropoffAddr: '15204 Omega Drive Rockville 20850',
-		bookingId: 'test-booking-id', // Added placeholder bookingId
-	};
 
 	try {
-		const trip = await GetTrip(q, env);
 		const options = {
 			headers: { 'content-type': 'application/json;charset=UTF-8' },
 		};
-		return new Response(JSON.stringify(trip), options);
+		return new Response(JSON.stringify(null), options);
 	} catch (error) {
-		console.error('Error in GetTrip:', error);
-		return new Response(JSON.stringify({ error: 'Failed to get trip data' }), {
+		return new Response(JSON.stringify("failed"), {
 			status: 500,
 			headers: { 'Content-Type': 'application/json' },
 		});
@@ -73,7 +72,7 @@ async function autoSchedule(request: Request, env: Env, ctx: ExecutionContext): 
 
 	try {
 		const jsonData: unknown = await request.json();
-		const queries = getSortedBookingQueries(jsonData as AutoScheduleRequest)
+		const rspn = await DoSchedule(jsonData as AutoScheduleRequest)
 
 		// for (const [k, v] of queries) {
 		// 	console.debug(k, v.length)
@@ -82,7 +81,7 @@ async function autoSchedule(request: Request, env: Env, ctx: ExecutionContext): 
 		// 	}
 	  // }
 
-		return new Response(JSON.stringify(Object.fromEntries(queries)), {
+		return new Response(rspn, {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' },
 		});

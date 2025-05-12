@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { GetTrip } from '../src/utils/map';
+import { GetDirection } from '../src/utils/map';
 
 // Mock the global fetch function
 global.fetch = vi.fn();
@@ -8,15 +8,15 @@ const mockEnv = {
   API_TOKEN: 'test_api_key',
 };
 
-describe('GetTrip', () => {
+describe('GetDirection', () => {
   beforeEach(() => {
     vi.resetAllMocks(); // Reset mocks before each test
   });
 
   const baseQuery = {
     departureTime: new Date('2024-01-01T10:00:00.000Z'),
-    pickupAddr: 'Origin Address',
-    dropoffAddr: 'Destination Address',
+    fromAddr: 'Origin Address',
+    toAddr: 'Destination Address',
   };
 
   it('should return trip info for a successful API call', async () => {
@@ -39,7 +39,7 @@ describe('GetTrip', () => {
       json: async () => mockApiResponse,
     });
 
-    const tripInfo = await GetTrip(baseQuery, mockEnv);
+    const tripInfo = await GetDirection(baseQuery, mockEnv);
 
     expect(fetch).toHaveBeenCalledTimes(1);
     const expectedUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=Origin+Address&destination=Destination+Address&departure_time=${Math.floor(baseQuery.departureTime.getTime() / 1000)}&key=test_api_key`;
@@ -53,7 +53,7 @@ describe('GetTrip', () => {
   });
 
   it('should throw an error if API_TOKEN is missing', async () => {
-    await expect(GetTrip(baseQuery, { API_TOKEN: '' })).rejects.toThrow(
+    await expect(GetDirection(baseQuery, { API_TOKEN: '' })).rejects.toThrow(
       'Google Maps API key (API_TOKEN) not found in environment.'
     );
   });
@@ -69,7 +69,7 @@ describe('GetTrip', () => {
       json: async () => mockApiResponse,
     });
 
-    await expect(GetTrip(baseQuery, mockEnv)).rejects.toThrow(
+    await expect(GetDirection(baseQuery, mockEnv)).rejects.toThrow(
       'Google Maps API returned status ZERO_RESULTS: No route could be found between the origin and destination.'
     );
   });
@@ -85,7 +85,7 @@ describe('GetTrip', () => {
       json: async () => mockApiResponse,
     });
 
-    await expect(GetTrip(baseQuery, mockEnv)).rejects.toThrow('No routes found for the given query.');
+    await expect(GetDirection(baseQuery, mockEnv)).rejects.toThrow('No routes found for the given query.');
   });
   
   it('should throw an error if API returns OK but no legs in route', async () => {
@@ -99,6 +99,6 @@ describe('GetTrip', () => {
       json: async () => mockApiResponse,
     });
 
-    await expect(GetTrip(baseQuery, mockEnv)).rejects.toThrow('No routes found for the given query.');
+    await expect(GetDirection(baseQuery, mockEnv)).rejects.toThrow('No routes found for the given query.');
   });
 })

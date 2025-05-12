@@ -1,28 +1,46 @@
-import { AutoScheduleRequest, Booking } from '../interfaces';
+import { AutoScheduleRequest, Booking, Trip, Vehicle, DriverInfo } from '../interfaces';
 import { getDateByDateTimeAddress } from './time';
-import { TripQuery } from './map';
+import { GetDirection } from './map';
 
-export function getSortedBookingQueries(request: AutoScheduleRequest): Map<BookingCategory, Array<TripQuery>> {
+// used to query a single leg
+export interface LegInfo {
+  bookingId: string;
+  departureTime: Date;
+  fromAddr: string;
+  toAddr: string;
+  
+  // ony after query direction
+  distanceInMeter?: number; 
+  durationInSec?: number;
+}
+
+
+export async function DoSchedule(request: AutoScheduleRequest): Promise<string> {
+  const map = await getSortedLegs(request);
+  return JSON.stringify(Object.fromEntries(map));
+}
+
+async function getSortedLegs(request: AutoScheduleRequest): Promise<Map<BookingCategory, Array<LegInfo>>> {
   const dateStr = request.date;
-  const queries = new Map<BookingCategory, Array<TripQuery>>();
+  const allLegs = new Map<BookingCategory, Array<LegInfo>>();
 
   for (const booking of request.bookings) {
     const category = getBookingCategory(booking);
-    const query = getTripQuery(dateStr, booking);
+    const leg = await getLegInfo(dateStr, booking);
     // console.log(query)
 
-    if (!queries.has(category)) {
-      queries.set(category, []);
+    if (!allLegs.has(category)) {
+      allLegs.set(category, []);
     }
-    queries.get(category)!.push(query);
+    allLegs.get(category)!.push(leg);
   }
 
   // Sort queries by departureTime
-  for (const category of queries.keys()) {
-    queries.get(category)!.sort((a, b) => a.departureTime.getTime() - b.departureTime.getTime());
+  for (const category of allLegs.keys()) {
+    allLegs.get(category)!.sort((lhs, rhs) => lhs.departureTime.getTime() - rhs.departureTime.getTime());
   }
 
-  return queries
+  return allLegs
 }
 
 enum BookingCategory {
@@ -31,14 +49,16 @@ enum BookingCategory {
   Ambulatory = 'AMBULATORY',
 }
 
-function getTripQuery(dateStr: string, booking: Booking): TripQuery {
+// Get updated LegInfo from single Booking 
+async function getLegInfo(dateStr: string, booking: Booking): Promise<LegInfo> {
   const departureTime = getDateByDateTimeAddress(dateStr, booking.pickup_time, booking.pickup_address);
-  return {
-      departureTime,
-      pickupAddr: booking.pickup_address,
-      dropoffAddr: booking.dropoff_address,
-      bookingId: booking.booking_id,
-    }
+  const legInfo: LegInfo = await GetDirection({
+    bookingId: booking.booking_id,
+    fromAddr: booking.pickup_address.replace(/^"(.+)"$/,'$1'),
+    toAddr: booking.dropoff_address.replace(/^"(.+)"$/,'$1'),
+    departureTime: departureTime,
+  });
+  return legInfo;
 }
 
 function getBookingCategory(booking: Booking): BookingCategory {
