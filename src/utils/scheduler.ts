@@ -109,7 +109,7 @@ function markLastLegForPassengers(legs: Array<LegInfo>): void {
 }
 
 // Get updated LegInfo from single Booking 
-async function getLegInfo(dateStr: string, booking: Booking): Promise<LegInfo> {
+export async function getLegInfo(dateStr: string, booking: Booking): Promise<LegInfo> {
   const departureTime = getDateByDateTimeAddress(dateStr, booking.pickup_time, booking.pickup_address);
   const [distanceInMeter, durationInSec] = await GetDirection(booking.pickup_address, booking.dropoff_address, departureTime);
   const mobilityAssistance = new Set<MobilityAssistance>(booking.mobility_assistance.map((str) => {
@@ -144,7 +144,6 @@ async function getLegInfo(dateStr: string, booking: Booking): Promise<LegInfo> {
     durationInSec: durationInSec,
   };
 }
-
 
 interface Shuttle {
   index: number;
