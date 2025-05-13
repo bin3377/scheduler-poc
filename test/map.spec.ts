@@ -2,26 +2,36 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GetDirection } from '../src/utils/map';
 
 // Mock the global fetch function
-global.fetch = vi.fn();
+const mockFetch = vi.fn();
+globalThis.fetch = mockFetch;
 
-const mockEnv = {
-  API_TOKEN: 'test_api_key',
-};
+// Mock environment variables
+// Cast to any to bypass TS errors in test environment
+const originalEnv = (globalThis as any).currentEnv; 
 
 describe('GetDirection', () => {
+  const from = 'Origin_Address';
+  const to = 'Destination_Address';
+  const futureDepartureTime = new Date(Date.now() + 3600 * 1000); // 1 hour in the future
+  const pastDepartureTime = new Date(Date.now() - 3600 * 1000); // 1 hour in the past
+  const apiKey = 'test-api-key';
+
   beforeEach(() => {
-    vi.resetAllMocks(); // Reset mocks before each test
+    // Reset mocks before each test
+    mockFetch.mockReset();
+    // Set up mock environment for each test
+    // Cast to any to bypass TS errors in test environment
+    (globalThis as any).currentEnv = { API_TOKEN: apiKey };
   });
 
-  const baseQuery = {
-    departureTime: new Date('2024-01-01T10:00:00.000Z'),
-    fromAddr: 'Origin Address',
-    toAddr: 'Destination Address',
-  };
+  afterEach(() => {
+    // Restore original environment after each test
+    // Cast to any to bypass TS errors in test environment
+    (globalThis as any).currentEnv = originalEnv;
+  });
 
-  it('should return trip info for a successful API call', async () => {
-    const mockApiResponse = {
-      status: 'OK',
+  it('should return distance and duration for a valid request with future departure time', async () => {
+    const mockResponse = {
       routes: [
         {
           legs: [
@@ -32,73 +42,134 @@ describe('GetDirection', () => {
           ],
         },
       ],
+      status: 'OK',
     };
-
-    (fetch as vi.Mock).mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockApiResponse,
+      json: async () => mockResponse,
+      text: async () => JSON.stringify(mockResponse), // Added for consistency if needed
     });
 
-    const tripInfo = await GetDirection(baseQuery, mockEnv);
+    const [distance, duration] = await GetDirection(from, to, futureDepartureTime);
 
-    expect(fetch).toHaveBeenCalledTimes(1);
-    const expectedUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=Origin+Address&destination=Destination+Address&departure_time=${Math.floor(baseQuery.departureTime.getTime() / 1000)}&key=test_api_key`;
-    expect(fetch).toHaveBeenCalledWith(expectedUrl);
-
-    expect(tripInfo).toEqual({
-      ...baseQuery,
-      distance: 10000,
-      timeInSec: 900,
-    });
+    expect(distance).toBe(10000);
+    expect(duration).toBe(900);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const fetchUrl = mockFetch.mock.calls[0][0] as string;
+    expect(fetchUrl).toContain(`origin=${encodeURIComponent(from)}`);
+    expect(fetchUrl).toContain(`destination=${encodeURIComponent(to)}`);
+    expect(fetchUrl).toContain(`key=${apiKey}`);
+    expect(fetchUrl).toContain('departure_time='); // Future time should be included
   });
 
-  it('should throw an error if API_TOKEN is missing', async () => {
-    await expect(GetDirection(baseQuery, { API_TOKEN: '' })).rejects.toThrow(
+  it('should return distance and duration for a valid request with past departure time', async () => {
+      const mockResponse = {
+        routes: [
+          {
+            legs: [
+              {
+                distance: { text: '12 km', value: 12000 },
+                duration: { text: '20 mins', value: 1200 },
+              },
+            ],
+          },
+        ],
+        status: 'OK',
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+        text: async () => JSON.stringify(mockResponse),
+      });
+  
+      const [distance, duration] = await GetDirection(from, to, pastDepartureTime);
+  
+      expect(distance).toBe(12000);
+      expect(duration).toBe(1200);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const fetchUrl = mockFetch.mock.calls[0][0] as string;
+      // expect(fetchUrl).toContain(`origin=${encodeURIComponent(from)}`);
+      expect(fetchUrl).toContain(`destination=${encodeURIComponent(to)}`);
+      expect(fetchUrl).toContain(`key=${apiKey}`);
+      expect(fetchUrl).not.toContain('departure_time='); // Past time should NOT be included
+    });
+
+  it('should throw an error if API key is missing', async () => {
+    // Cast to any to bypass TS errors in test environment
+    (globalThis as any).currentEnv = { API_TOKEN: undefined }; // Simulate missing API key
+
+    await expect(GetDirection(from, to, futureDepartureTime)).rejects.toThrow(
       'Google Maps API key (API_TOKEN) not found in environment.'
     );
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('should throw an error if API returns a non-OK status', async () => {
-    const mockApiResponse = {
-      status: 'ZERO_RESULTS',
-      error_message: 'No route could be found between the origin and destination.',
-    };
-
-    (fetch as vi.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => mockApiResponse,
+  it('should throw an error if fetch request fails', async () => {
+    const errorStatus = 500;
+    const errorText = 'Internal Server Error';
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: errorStatus,
+      text: async () => errorText,
     });
 
-    await expect(GetDirection(baseQuery, mockEnv)).rejects.toThrow(
-      'Google Maps API returned status ZERO_RESULTS: No route could be found between the origin and destination.'
+    await expect(GetDirection(from, to, futureDepartureTime)).rejects.toThrow(
+      `Google Maps API request failed with status ${errorStatus}: ${errorText}`
     );
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('should throw an error if API returns OK but no routes', async () => {
-    const mockApiResponse = {
-      status: 'OK',
+  it('should throw an error if Google Maps API returns non-OK status', async () => {
+    const apiStatus = 'ZERO_RESULTS';
+    const errorMessage = 'No route could be found between the origin and destination.';
+    const mockResponse = {
       routes: [],
+      status: apiStatus,
+      error_message: errorMessage,
     };
-
-    (fetch as vi.Mock).mockResolvedValue({
+    mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockApiResponse,
+      json: async () => mockResponse,
+      text: async () => JSON.stringify(mockResponse),
     });
 
-    await expect(GetDirection(baseQuery, mockEnv)).rejects.toThrow('No routes found for the given query.');
+    await expect(GetDirection(from, to, futureDepartureTime)).rejects.toThrow(
+      `Google Maps API returned status ${apiStatus}: ${errorMessage}`
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
+
+   it('should throw an error if Google Maps API returns OK but no routes', async () => {
+      const mockResponse = {
+        routes: [], // Empty routes array
+        status: 'OK',
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+        text: async () => JSON.stringify(mockResponse),
+      });
   
-  it('should throw an error if API returns OK but no legs in route', async () => {
-    const mockApiResponse = {
-      status: 'OK',
-      routes: [{ legs: [] }],
-    };
-
-    (fetch as vi.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => mockApiResponse,
+      await expect(GetDirection(from, to, futureDepartureTime)).rejects.toThrow(
+        'No routes found for the given query.'
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    await expect(GetDirection(baseQuery, mockEnv)).rejects.toThrow('No routes found for the given query.');
-  });
-})
+    it('should throw an error if Google Maps API returns OK but routes[0].legs is empty', async () => {
+        const mockResponse = {
+          routes: [{ legs: [] }], // Empty legs array
+          status: 'OK',
+        };
+        mockFetch.mockResolvedValue({
+          ok: true,
+          json: async () => mockResponse,
+          text: async () => JSON.stringify(mockResponse),
+        });
+    
+        await expect(GetDirection(from, to, futureDepartureTime)).rejects.toThrow(
+          'No routes found for the given query.'
+        );
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      });
+});

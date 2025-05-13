@@ -5,13 +5,30 @@ import { GetDirection } from './map';
 // used to query a single leg
 export interface LegInfo {
   bookingId: string;
-  departureTime: Date;
+  
+  mobilityAssistance: Set<MobilityAssistance>;
+  priority: MobilityAssistance;
+
+  pessagner: string;
+  isLastLegForPassenger: boolean; // true if this is the last leg for the passenger
+  
   fromAddr: string;
   toAddr: string;
-  
+  departureTime: Date;
+
   // ony after query direction
   distanceInMeter?: number; 
   durationInSec?: number;
+}
+
+function priority(ma: {mobilityAssistance: Set<MobilityAssistance>}): MobilityAssistance {
+  if (ma.mobilityAssistance.has(MobilityAssistance.Stretcher)) {
+    return MobilityAssistance.Stretcher;
+  } else if (ma.mobilityAssistance.has(MobilityAssistance.Wheelchair)) {
+    return MobilityAssistance.Wheelchair;
+  } else {
+    return MobilityAssistance.Ambulatory;
+  }
 }
 
 export async function DoSchedule(request: AutoScheduleRequest): Promise<string> {
@@ -26,6 +43,12 @@ namespace config {
   
   export const isDebug = (): boolean => {
     return request.debug ?? globalThis.currentEnv.DEBUG_MODE
+  }
+
+  export const debug = (...data: any[]) => {
+    if (isDebug()) {
+      console.debug(...data);
+    }
   }
 
   export const beforePickupInSec = (): number => {
@@ -45,56 +68,92 @@ namespace config {
   }
 }
 
-async function getSortedLegs(request: AutoScheduleRequest): Promise<Map<BookingCategory, Array<LegInfo>>> {
+async function getSortedLegs(request: AutoScheduleRequest): Promise<Map<MobilityAssistance, Array<LegInfo>>> {
   const dateStr = request.date;
-  const allLegs = new Map<BookingCategory, Array<LegInfo>>();
+  const allLegs = new Map<MobilityAssistance, Array<LegInfo>>();
 
   for (const booking of request.bookings) {
-    const category = getBookingCategory(booking);
     const leg = await getLegInfo(dateStr, booking);
 
-    if (!allLegs.has(category)) {
-      allLegs.set(category, []);
+    if (!allLegs.has(leg.priority)) {
+      allLegs.set(leg.priority, []);
     }
-    allLegs.get(category)!.push(leg);
+    allLegs.get(leg.priority)!.push(leg);
   }
 
   // Sort queries by departureTime
   for (const category of allLegs.keys()) {
-    allLegs.get(category)!.sort((lhs, rhs) => lhs.departureTime.getTime() - rhs.departureTime.getTime());
+    let legs = allLegs.get(category)!;
+    legs.sort((lhs, rhs) => lhs.departureTime.getTime() - rhs.departureTime.getTime());
+    markLastLegForPassengers(legs);
+    allLegs.set(category, legs);
   }
 
-  if (config.isDebug()) {
-    console.debug('Sorted legs:', JSON.stringify(Object.fromEntries(allLegs)));
-  }
+  config.debug('Sorted legs:', JSON.stringify(Object.fromEntries(allLegs)));
 
   return allLegs
 }
 
-enum BookingCategory {
-  Stretcher = 'STRETCHER',
-  Wheelchair = 'WHEELCHAIR',
-  Ambulatory = 'AMBULATORY',
+// Mark the last leg for each passenger with backward iteration (legs are sorted by departure time)
+function markLastLegForPassengers(legs: Array<LegInfo>): void {
+  let pessengers: Set<string> = new Set<string>();
+
+  for (let i = legs.length; i > 0; i--) {
+    const leg = legs[i-1];
+    if (pessengers.has(leg.pessagner)) {
+      continue;
+    }
+    leg.isLastLegForPassenger = true;
+    pessengers.add(leg.pessagner);
+  }
 }
 
 // Get updated LegInfo from single Booking 
 async function getLegInfo(dateStr: string, booking: Booking): Promise<LegInfo> {
   const departureTime = getDateByDateTimeAddress(dateStr, booking.pickup_time, booking.pickup_address);
-  const legInfo: LegInfo = await GetDirection({
+  const [distanceInMeter, durationInSec] = await GetDirection(booking.pickup_address, booking.dropoff_address, departureTime);
+  const mobilityAssistance = new Set<MobilityAssistance>(booking.mobility_assistance.map((str) => {
+    switch (str) {
+      case 'Stretcher':
+        return MobilityAssistance.Stretcher;
+      case 'Wheelchair':
+        return MobilityAssistance.Wheelchair;
+      default:
+        return MobilityAssistance.Ambulatory;
+    }
+  }));
+
+  const priority = mobilityAssistance.has(MobilityAssistance.Stretcher) ? 
+    MobilityAssistance.Stretcher : mobilityAssistance.has(MobilityAssistance.Wheelchair) ? 
+      MobilityAssistance.Wheelchair : MobilityAssistance.Ambulatory;
+
+  return {
     bookingId: booking.booking_id,
+
+    pessagner: `${booking.passenger_firstname} ${booking.passenger_lastname}`,
+    isLastLegForPassenger: false,
+    
+    mobilityAssistance: mobilityAssistance,
+    priority: priority,
+    
     fromAddr: booking.pickup_address.replace(/^"(.+)"$/,'$1'),
     toAddr: booking.dropoff_address.replace(/^"(.+)"$/,'$1'),
     departureTime: departureTime,
-  });
-  return legInfo;
+
+    distanceInMeter: distanceInMeter,
+    durationInSec: durationInSec,
+  };
 }
 
-function getBookingCategory(booking: Booking): BookingCategory {
-  if (booking.mobility_assistance && booking.mobility_assistance.some(item => item.toUpperCase() === BookingCategory.Stretcher)) {
-    return BookingCategory.Stretcher;
-  }
-  if (booking.mobility_assistance && booking.mobility_assistance.some(item => item.toUpperCase() === BookingCategory.Wheelchair)) {
-    return BookingCategory.Wheelchair;
-  }
-  return BookingCategory.Ambulatory; // for any other, assume Ambulatory
+
+interface Shuttle {
+  index: number;
+  assistanceTypes: Set<string>;
+  legs: Array<LegInfo>;
+}
+
+enum MobilityAssistance {
+  Stretcher = 'Stretcher',
+  Wheelchair = 'Wheelchair',
+  Ambulatory = 'Ambulatory',
 }
