@@ -11,32 +11,14 @@ interface TimezoneEntry {
 }
 
 /**
- * GetDate object from date/time/address combination.
+ * Get Date object from date/time/timezone combination.
  * @param dateStr A string to present date like "August 27, 2024".
  * @param timeStr A string to present time in the day like "08:00".
- * @param address A string to present address like "17815 Ventura Boulevard, Encino, CA 91316".
+ * @param timezoneId A string to present timezone like "America/Los_Angeles"
  * @returns The Date object in the correct time zone.
- * @throws Error if zipcode cannot be extracted, timezone not found, or date/time parsing fails.
+ * @throws Error if timezone not found, or date/time parsing fails.
  */
-export function getDateByDateTimeAddress(dateStr: string, timeStr: string, address: string): Date {
-  // Extract zipcode from address
-  const addressParts = address.split(' ');
-  let potentialZip = addressParts[addressParts.length - 1];
-  let zipcode: number | null = null;
-
-  if (potentialZip && /^\d{5}$/.test(potentialZip)) {
-    zipcode = parseInt(potentialZip, 10);
-  }
-
-  if (zipcode === null) {
-    throw new Error(`Could not extract zipcode from address: "${address}".`);
-  }
-
-  const timezoneId = getTimeZoneByZipcode(zipcode);
-  if (timezoneId == null) {
-    throw new Error(`Could not find timezone for zipcode: "${zipcode}" from address: "${address}".`);
-  }
-
+export function getDateTime(dateStr: string, timeStr: string, timezoneId: string): Date {
   // Parse timeStr ("HH:mm")
   let [hoursStr, minutesStr] = timeStr.split(':');
   const hours = parseInt(hoursStr, 10);
@@ -71,7 +53,31 @@ export function getDateByDateTimeAddress(dateStr: string, timeStr: string, addre
   }
 }
 
-function getTimeZoneByZipcode(zipcode: number): string | null {
+
+/**
+ * Get timezone like "America/Los_Angeles" with look up the zipcode in address.
+ * @param address A string to present timezone like address like "17815 Ventura Boulevard, Encino, CA 91316".
+ * @returns string with timezone ID like "America/Los_Angeles"
+ */
+export function getTimezoneByAddress(address: string): string | null {
+  // Extract zipcode from address
+  const addressParts = address.split(' ');
+  let potentialZip = addressParts[addressParts.length - 1];
+  let zipcode: number | null = null;
+
+  if (potentialZip && /^\d{5}$/.test(potentialZip)) {
+    zipcode = parseInt(potentialZip, 10);
+  }
+
+  if (zipcode === null) {
+    return null;
+  }
+
+  return getTimezoneByZipcode(zipcode);
+}
+
+
+function getTimezoneByZipcode(zipcode: number): string | null {
   const mapping = timezoneMapping as TimezoneEntry[];
   for (const entry of mapping) {
     if (zipcode >= entry.zipcodeStart && zipcode <= entry.zipcodeEnd) {

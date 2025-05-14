@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDateByDateTimeAddress } from '../src/utils/time';
+import { getDateTime } from '../src/utils/time';
 
 // Mock timezoneMapping if it's an external dependency affecting tests,
 // or ensure test zipcodes exist in the actual timezone_mapper.json
@@ -19,12 +19,12 @@ import { getDateByDateTimeAddress } from '../src/utils/time';
 //   });
 // });
 
-describe('getDateByDateTimeAddress', () => {
+describe('getDateTime', () => {
   it('should return a correct Date object for valid inputs (America/Los_Angeles)', () => {
     const dateStr = 'August 27, 2024';
     const timeStr = '08:30'; // 24-hour format
-    const address = '123 Main St, Beverly Hills, CA 90210'; // LA timezone
-    const resultDate = getDateByDateTimeAddress(dateStr, timeStr, address);
+    const timezone = 'America/Los_Angeles'; // LA timezone
+    const resultDate = getDateTime(dateStr, timeStr, timezone);
     // Expected: 2024-08-27T08:30:00 in America/Los_Angeles
     // We can check components or convert to a specific string format for comparison
     expect(resultDate.getFullYear()).toBe(2024);
@@ -42,57 +42,37 @@ describe('getDateByDateTimeAddress', () => {
     // For this example, we'll assume the internal logic of fromZonedTime is correct.
   });
 
-  it('should handle address with zipcode and state separated by comma (e.g. "City, CA, 90210")', () => {
-    const dateStr = 'August 27, 2024';
-    const timeStr = '10:00';
-    const address = '123 Main St, Beverly Hills, CA, 90210';
-    const resultDate = getDateByDateTimeAddress(dateStr, timeStr, address);
-    expect(resultDate.getFullYear()).toBe(2024);
-    expect(resultDate.getMonth()).toBe(7);
-    expect(resultDate.getDate()).toBe(27);
-    expect(isNaN(resultDate.getTime())).toBe(false);
-  });
-
-
-  it('should throw an error if zipcode cannot be extracted', () => {
+  it('should throw an error if invalid timezone', () => {
     const dateStr = 'August 27, 2024';
     const timeStr = '08:30';
-    const address = '123 Main St, Unknown City, ST'; // No zipcode
-    expect(() => getDateByDateTimeAddress(dateStr, timeStr, address))
-      .toThrow('Could not extract zipcode from address: "123 Main St, Unknown City, ST".');
-  });
-
-  it('should throw an error if timezone is not found for zipcode', () => {
-    const dateStr = 'August 27, 2024';
-    const timeStr = '08:30';
-    const address = '123 Main St, City, ST 00000'; // Zipcode unlikely to be mapped
-    expect(() => getDateByDateTimeAddress(dateStr, timeStr, address))
-      .toThrow('Could not find timezone for zipcode: "0" from address: "123 Main St, City, ST 00000".');
+    const timezone = 'Invalid';
+    expect(() => getDateTime(dateStr, timeStr, timezone))
+      .toThrow('Error in fromZonedTime for "2024-08-27T08:30:00", timezone "Invalid": Could not create zoned date for: "2024-08-27T08:30:00" in timezone "Invalid".');
   });
 
   it('should throw an error for an invalid date string', () => {
     const dateStr = 'Invalid Date String';
     const timeStr = '08:30';
-    const address = '123 Main St, Beverly Hills, CA 90210';
-    expect(() => getDateByDateTimeAddress(dateStr, timeStr, address))
+    const timezone = 'America/Los_Angeles'; // LA timezone
+    expect(() => getDateTime(dateStr, timeStr, timezone))
       .toThrow('Invalid dateStr: "Invalid Date String".');
   });
 
   it('should throw an error for an invalid time string format (e.g., missing colon)', () => {
     const dateStr = 'August 27, 2024';
     const timeStr = '0830 AM'; // Invalid time
-    const address = '123 Main St, Beverly Hills, CA 90210';
+    const timezone = 'America/Los_Angeles'; // LA timezone
     // This error will likely come from parseInt or split, not directly from a custom check in getDateByDateTimeAddress
     // but the function should still fail. The exact error message might vary.
-    expect(() => getDateByDateTimeAddress(dateStr, timeStr, address))
+    expect(() => getDateTime(dateStr, timeStr, timezone))
       .toThrow(); // Or a more specific error if one is consistently thrown by the parsing logic
   });
   
   it('should correctly parse 12 AM (midnight)', () => {
     const dateStr = 'January 1, 2025';
     const timeStr = '12:00 AM';
-    const address = '123 Main St, Beverly Hills, CA 90210';
-    const resultDate = getDateByDateTimeAddress(dateStr, timeStr, address);
+    const timezone = 'America/Los_Angeles'; // LA timezone
+    const resultDate = getDateTime(dateStr, timeStr, timezone);
     // In LA timezone, this is 2025-01-01T00:00:00
     // Check date components carefully
     const expected = new Date('2025-01-01T00:00:00.000Z'); // This is UTC
@@ -114,8 +94,8 @@ describe('getDateByDateTimeAddress', () => {
   it('should correctly parse 12 PM (noon)', () => {
     const dateStr = 'January 1, 2025';
     const timeStr = '12:00 PM';
-    const address = '123 Main St, Beverly Hills, CA 90210';
-    const resultDate = getDateByDateTimeAddress(dateStr, timeStr, address);
+    const timezone = 'America/Los_Angeles'; // LA timezone
+    const resultDate = getDateTime(dateStr, timeStr, timezone);
     // In LA timezone, this is 2025-01-01T12:00:00
     expect(resultDate.getFullYear()).toBe(2025);
     expect(resultDate.getMonth()).toBe(0);
