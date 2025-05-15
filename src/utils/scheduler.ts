@@ -138,8 +138,9 @@ export class TripInfo {
     function addr(input: string):string {
       return input.split(",")[0]
     }
+    const last = this.isLast ? "" : "[L]"
     const name = `${this.booking.passenger_firstname.charAt(0)}.${this.booking.passenger_lastname.charAt(0)}`;
-    return `${name}, ${this.booking.pickup_time}, ${addr(this.pickupAddress)} ${codeMA(this.assistance)} (${this.booking.booking_id})`;
+    return `${name}, ${this.booking.pickup_time}, ${addr(this.pickupAddress)} ${codeMA(this.assistance)} (${this.booking.booking_id})${last}`;
   }
 
 
@@ -172,11 +173,11 @@ export async function DoSchedule(request: AutoScheduleRequest): Promise<string> 
   const priorityTrips = getPriorityTrips(allTrips);
   const plan: VehicleInfo[] = [];
   for (const trips of priorityTrips) {
-    console.log(`schedule ${trips.length} trips`)
     await scheduleTrips(plan, trips);
+  }
+  if (config.isDebug()) {
     printPlan(plan);
   }
-  // printPlan(plan);
   return JSON.stringify(plan);
 }
 
@@ -196,7 +197,7 @@ function printPlan(plan: VehicleInfo[]) {
 async function scheduleTrips(plan: VehicleInfo[], trips: TripInfo[]) {
 
   for (const trip of trips) {
-    console.debug(`\nSchedule trip: ${trip.short()}\n`)
+    config.debug(`\nSchedule trip: ${trip.short()}\n`)
 
     let bestVehicle: VehicleInfo | null = null;
     let bestTime: Date | null = null;
@@ -204,18 +205,18 @@ async function scheduleTrips(plan: VehicleInfo[], trips: TripInfo[]) {
     for (const vehicle of plan) {
       const arrivalTime = await vehicle.fitTrip(trip);
       if (arrivalTime === null) {
-        console.debug(`[NO]${vehicle.name()}`);
+        config.debug(`[ NO ]${vehicle.name().padEnd(8)}:`);
       } else if (bestTime === null){
-        console.debug(`[OK]${vehicle.name()} new    - ${format(arrivalTime, "HH:mm")}`);
+        config.debug(`[ OK ]${vehicle.name().padEnd(8)}: new      - ${format(arrivalTime, "HH:mm")}`);
         bestVehicle = vehicle;
         bestTime = arrivalTime;
       } else if (arrivalTime < bestTime) {
         // new best time
-        console.debug(`[OK]${vehicle.name()} better - ${format(arrivalTime, "HH:mm")}`);
+        config.debug(`[ OK ]${vehicle.name().padEnd(8)}: better   - ${format(arrivalTime, "HH:mm")}`);
         bestVehicle = vehicle;
         bestTime = arrivalTime;
       } else {
-        console.debug(`[SKIP]${vehicle.name()} not better`);
+        config.debug(`[SKIP]${vehicle.name().padEnd(8)}: not better`);
       }
     }
 
@@ -224,11 +225,11 @@ async function scheduleTrips(plan: VehicleInfo[], trips: TripInfo[]) {
       bestVehicle = new VehicleInfo(trip);
       bestVehicle.shuttleIndex = plan.length + 1;
       plan.push(bestVehicle);
-      console.debug(`[DECISION]new vehicle: ${bestVehicle.name()}\n`)
+      config.debug(`\n[DECISION]new vehicle: ${bestVehicle.name()}\n`)
     } else {
       // add trip to the best vehicle
       bestVehicle.addTrip(trip);
-      console.debug(`[DECISION]exist vehicle: ${bestVehicle.name()}\n`)
+      config.debug(`\n[DECISION]exist vehicle: ${bestVehicle.name()}\n`)
     }
   }
 }
@@ -252,7 +253,7 @@ async function getSortedTrips(): Promise<TripInfo[]> {
       passengers.add(passenger);
     }
   }
-  console.log('all trips:', trips.length);
+  config.debug(`converted ${trips.length} booking to trips`);
   return trips;
 }
 
@@ -265,7 +266,7 @@ function getPriorityTrips(trips: TripInfo[]):TripInfo[][] {
     priorityTrips[priority].push(trip);
   }
 
-  console.log('priority trips:', priorityTrips.map(x => x.length).join(", "));
+  config.debug('priority trips:', priorityTrips.map(x => x.length).join(", "));
   return priorityTrips;
 }
 
@@ -307,7 +308,7 @@ export class VehicleInfo {
       // query the time/distance between last dropoff and next pickup only if they are not same location
       const direction = await GetDirection(lastTrip.dropOffAddress, nextTrip.pickupAddress, lastDropoffTime);
       if (direction === null) {
-        console.debug(`No routes found for the given query from ${lastTrip.dropOffAddress} to ${nextTrip.pickupAddress}; skip.`);
+        config.debug(`No routes found for the given query from ${lastTrip.dropOffAddress} to ${nextTrip.pickupAddress}; skip.`);
         return null;
       }
       estimatedArrival = addSeconds(lastDropoffTime, direction.durationInSec)
