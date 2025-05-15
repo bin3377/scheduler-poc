@@ -1,7 +1,7 @@
-import { AutoScheduleRequest, Booking, Vehicle, DriverInfo, Trip } from '../interfaces';
+import { AutoScheduleRequest, Booking } from '../interfaces';
 import { getDateTime, getTimezoneByAddress } from './time'
 import { GetDirection, DirectionResult } from './map'
-import { addMinutes, addSeconds, format } from 'date-fns';
+import { addSeconds, format } from 'date-fns';
 
 namespace config {
 
@@ -97,11 +97,14 @@ export class TripInfo {
   passenger: string;
   assistance: MobilityAssistance;
 
-  isLast: boolean = false;
   departureTime: Date;
   distanceInMeter: number;
   durationInSec: number;
   arrivalTime: Date;
+
+  isLast: boolean = false;
+  scheduledPickupTime: Date | null = null;
+  scheduledDropoffTime: Date | null = null;
 
   static async create(booking: Booking): Promise<TripInfo> {
     
@@ -131,7 +134,7 @@ export class TripInfo {
     this.departureTime = departureTime;
     this.distanceInMeter = direction.distanceInMeter;
     this.durationInSec = direction.durationInSec;
-    this.arrivalTime = new Date(departureTime.getTime() + this.durationInSec * 1000);
+    this.arrivalTime = addSeconds(departureTime, this.durationInSec);
   }
 
   short(): string {
@@ -141,29 +144,6 @@ export class TripInfo {
     const last = this.isLast ? "" : "[L]"
     const name = `${this.booking.passenger_firstname.charAt(0)}.${this.booking.passenger_lastname.charAt(0)}`;
     return `${name}, ${this.booking.pickup_time}, ${addr(this.pickupAddress)} ${codeMA(this.assistance)} (${this.booking.booking_id})${last}`;
-  }
-
-
-
-  // The time vehicle need to arrive at the pickup address
-  startTime(): Date {
-    if (this.isLast) {
-      // for returning trip (e.g. the last trip of same passenger), delay is acceptable
-      return new Date(this.departureTime.getTime() + config.afterPickupInSec() * 1000);
-    } else {
-      // for outgoing trip, driver need be earlier
-      return new Date(this.departureTime.getTime() - config.beforePickupInSec() * 1000);
-    }
-  }
-
-  // The time vehicle finish the the trip and ready to go to the next
-  finishTime(): Date {
-    if (this.isLast) {
-      // for returning trip, we add the possible delay
-      return new Date(this.departureTime.getTime() + config.afterPickupInSec() * 1000 + this.durationInSec * 1000 + config.dropoffUnloadingInSec() * 1000);
-    } else {
-      return new Date(this.departureTime.getTime() + this.durationInSec * 1000 + config.dropoffUnloadingInSec() * 1000);
-    }
   }
 }
 
@@ -219,6 +199,12 @@ async function scheduleTrips(plan: VehicleInfo[], trips: TripInfo[]) {
         config.debug(`[SKIP]${vehicle.name().padEnd(8)}: not better`);
       }
     }
+
+    // update scheduled time in trip
+    console.assert(bestTime !== null, "empty bestTime")
+
+    trip.scheduledPickupTime = bestTime;
+    trip.scheduledDropoffTime = addSeconds(bestTime!, trip.durationInSec);
 
     if (bestVehicle === null) {
       // no vehicle can fit this trip, create a new one

@@ -1,11 +1,4 @@
-export interface TripMetadata {
-  trip_id: string | null;
-  program_id: string;
-  program_name: string;
-  program_timezone: string;
-}
-
-export interface Booking extends TripMetadata {
+export interface Booking {
   booking_id: string;
   passenger_id: string;
   passenger_firstname: string;
@@ -39,12 +32,13 @@ export interface Booking extends TripMetadata {
   payment_complete: boolean;
   mobility_assistance: string[];
   admin_note: string | null;
-
+  trip_id: string | null;
   trip_complete: boolean;
-
+  program_id: string;
+  program_timezone: string;
+  program_name: string;
   driver_note: string | null;
   office_note: string | null;
-
   flag: boolean;
   willcall_call_time: any | null;
   total_seat_count: number;
@@ -60,46 +54,64 @@ export interface AutoScheduleRequest {
   bookings: Booking[];
 }
 
-export interface DriverInfo { // not implemented
-  driver_id: null;
-  driver_firstname: null;
-  driver_lastname: null;
-  driver_team_id: null;
-  driver_team_name: null;
-  driver_team: null;
-  driver_action: null;
-  driver_shifts: any[];
+export interface AutoSchedulingResponse {
+  result: AutoSchedulingResult;
 }
 
-export interface Trip extends TripMetadata, DriverInfo {
+export interface AutoSchedulingResult {
+  status: string;
+  error_code: number;
+  message: string;
+  data: AutoSchedulingResultData;
+}
+
+export interface AutoSchedulingResultData {
+  vehicle_trip_list: Vehicle[];
+}
+
+export interface Vehicle {
+  shuttle_name: string;
+
+  shuttle_id: string | null;
+  shuttle_make: string | null;
+  shuttle_model: string | null;
+  shuttle_color: string | null;
+  shuttle_license_plate: string | null;
+  shuttle_wheelchair: string | null;
+  
+  driver_id: string | null;
+  driver_firstname: string | null;
+  driver_lastname: string | null;
+  driver_team_id: string | null;
+  driver_team_name: string | null;
+  driver_team: string | null;
+  
+  trips: Trip[];
+}
+
+export interface Trip {
+  trip_id: string | null;
+  program_id: string;
+  program_name: string;
+  program_timezone: string;
   first_pickup_time: string;
   last_dropoff_time: string;
-  
+  driver_id: string | null;
+  driver_firstname: string | null;
+  driver_lastname: string | null;
+  driver_team_id: string | null;
+  driver_team_name: string | null;
+  driver_team: string | null;
+  driver_action: string | null;
+  drivershifts: any[]; // This appears to be an empty array in all cases
   first_pickup_address: string;
   first_pickup_latitude: number;
   first_pickup_longitude: number;
   last_dropoff_address: string;
   last_dropoff_latitude: number;
   last_dropoff_longitude: number;
-
-  notes: null;
+  notes: string | null;
   number_of_passengers: number;
   trip_complete: boolean;
-  bookings: Booking[]; // always has one item
-}
-
-export interface Vehicle extends DriverInfo {
-  shuttle_id: string;
-  shuttle_make: string;
-  shuttle_model: string;
-  shuttle_color: string;
-  shuttle_license_plate: string;
-  shuttle_name: string;
-  shuttle_wheelchair: string;
-  
-  trips: Trip[];
-}
-
-export interface AutoScheduleResponse {
-  vehicle_trip_list: Vehicle[];
+  bookings: Booking[];
 }
