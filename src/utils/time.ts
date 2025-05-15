@@ -1,6 +1,6 @@
 import timezoneMapping from './timezone_mapper.json';
 
-import { toDate, fromZonedTime } from 'date-fns-tz'
+import { fromZonedTime } from 'date-fns-tz'
 
 interface TimezoneEntry {
   stateCode: string;
@@ -76,9 +76,9 @@ export function getTimezoneByAddress(address: string): string | null {
   return getTimezoneByZipcode(zipcode);
 }
 
+const mapping = timezoneMapping as TimezoneEntry[];
 
 function getTimezoneByZipcode(zipcode: number): string | null {
-  const mapping = timezoneMapping as TimezoneEntry[];
   for (const entry of mapping) {
     if (zipcode >= entry.zipcodeStart && zipcode <= entry.zipcodeEnd) {
       return entry.timezoneId;

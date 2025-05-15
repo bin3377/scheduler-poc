@@ -1,7 +1,11 @@
-export const GetDirection = async (from: string, to: string, departureTime: Date): Promise<[
-  distanceInMeter: number,
-  durationInSec: number,
-]> => {
+
+export interface DirectionResult {
+  distanceInMeter: number;
+  durationInSec: number;
+}
+
+export const GetDirection = async (from: string, to: string, departureTime: Date): 
+Promise<DirectionResult | null> => {
   return await getDirectionFromGoogle(from, to, departureTime);
 };
 
@@ -23,7 +27,7 @@ interface GoogleMapsDirectionsResponse {
   error_message?: string;
 }
 
-async function getDirectionFromGoogle(from: string, to: string, departureTime: Date): Promise<[number, number]> {
+async function getDirectionFromGoogle(from: string, to: string, departureTime: Date): Promise<DirectionResult | null> {
   const apiKey =  globalThis.currentEnv.API_TOKEN;
   if (!apiKey) {
     throw new Error('Google Maps API key (API_TOKEN) not found in environment.');
@@ -55,11 +59,14 @@ async function getDirectionFromGoogle(from: string, to: string, departureTime: D
   }
 
   if (!data.routes || data.routes.length === 0 || !data.routes[0].legs || data.routes[0].legs.length === 0) {
-    throw new Error('No routes found for the given query.');
+    return null;
   }
 
   const leg = data.routes[0].legs[0];
 
   // Add result to query and return
-  return [leg.distance.value, leg.duration.value];
+  return {
+    distanceInMeter: leg.distance.value,
+    durationInSec: leg.duration.value,
+  };
 }
