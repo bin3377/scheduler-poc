@@ -12,7 +12,7 @@
  */
 
 import { DoSchedule } from '../src/utils/scheduler'
-import { AutoScheduleRequest } from './interfaces'; // Added import
+import { AutoSchedulingRequest, AutoSchedulingResponse } from './interfaces'; // Added import
 
 declare global {
   var currentEnv: Env;
@@ -72,19 +72,19 @@ async function autoSchedule(request: Request, env: Env, ctx: ExecutionContext): 
 
 	try {
 		const jsonData: unknown = await request.json();
-		const rspn = await DoSchedule(jsonData as AutoScheduleRequest)
+		const rspn = await DoSchedule(jsonData as AutoSchedulingRequest)
 
-		// for (const [k, v] of queries) {
-		// 	console.debug(k, v.length)
-		// 	for (const q of v) {
-		// 		console.debug(JSON.stringify(q))
-		// 	}
-	  // }
+		if (typeof rspn === 'string') {
+			return new Response(rspn, {
+				status: 200,
+			})
+		} else {
+			return new Response(JSON.stringify(rspn), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}
 
-		return new Response(rspn, {
-			status: 200,
-			headers: { 'Content-Type': 'application/json' },
-		});
 	} catch (error) {
 		if (error instanceof SyntaxError) {
 			return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {

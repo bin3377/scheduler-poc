@@ -44,7 +44,7 @@ export interface Booking {
   total_seat_count: number;
 }
 
-export interface AutoScheduleRequest {
+export interface AutoSchedulingRequest {
   date: string; // "Month Day, Year"
   debug?: boolean
   before_pickup_time?: number; // seconds

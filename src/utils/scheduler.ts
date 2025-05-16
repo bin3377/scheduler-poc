@@ -1,11 +1,13 @@
-import { AutoScheduleRequest, Booking } from '../interfaces';
+import { AutoSchedulingRequest, AutoSchedulingResponse, Booking } from '../interfaces';
+import { convertToResponse } from './convert'
 import { getDateTime, getTimezoneByAddress } from './time'
 import { GetDirection, DirectionResult } from './map'
 import { addSeconds, format } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 
 namespace config {
 
-  export var request: AutoScheduleRequest;
+  export var request: AutoSchedulingRequest;
 
   export const dateStr = (): string => {
     return request.date;
@@ -97,29 +99,30 @@ export class TripInfo {
   passenger: string;
   assistance: MobilityAssistance;
 
-  departureTime: Date;
+  timezone: string;
+  pickupTime: Date;
+  dropOffTime: Date;
   distanceInMeter: number;
   durationInSec: number;
-  arrivalTime: Date;
 
   isLast: boolean = false;
-  scheduledPickupTime: Date | null = null;
-  scheduledDropoffTime: Date | null = null;
+  adjustedPickupTime: Date | null = null;
+  adjustedDropoffTime: Date | null = null;
 
   static async create(booking: Booking): Promise<TripInfo> {
     
     const timezone = getTimezoneByAddress(booking.pickup_address) ?? booking.program_timezone;
-    const departureTime = getDateTime(config.dateStr(), booking.pickup_time, timezone);
-    const result = await GetDirection(booking.pickup_address, booking.dropoff_address, departureTime);
+    const pickupTime = getDateTime(config.dateStr(), booking.pickup_time, timezone);
+    const result = await GetDirection(booking.pickup_address, booking.dropoff_address, pickupTime);
     if (result === null) {
       throw new Error(`No routes found for the given query from ${booking.pickup_address} to ${booking.dropoff_address}.`)
     }
 
-    return new TripInfo(booking, departureTime, result)
+    return new TripInfo(booking, timezone, pickupTime, result)
   }
   
   // private constructor since we need async to get distance/duration
-  private constructor(booking: Booking, departureTime: Date, direction: DirectionResult) {
+  private constructor(booking: Booking, timezone: string, pickupTime: Date, direction: DirectionResult) {
     this.booking = booking;
 
     this.pickupAddress = booking.pickup_address;
@@ -129,25 +132,29 @@ export class TripInfo {
     this.passenger = !!booking.passenger_id ? booking.passenger_id : `${booking.passenger_firstname} ${booking.passenger_lastname}`;
 
     // bitwise merge over parsed array
-    this.assistance = parseMA(...booking.mobility_assistance)
+    this.assistance = parseMA(...booking.mobility_assistance);
     
-    this.departureTime = departureTime;
+    this.timezone = timezone;
+    this.pickupTime = toZonedTime(pickupTime, timezone);
     this.distanceInMeter = direction.distanceInMeter;
     this.durationInSec = direction.durationInSec;
-    this.arrivalTime = addSeconds(departureTime, this.durationInSec);
+    this.dropOffTime = toZonedTime(addSeconds(pickupTime, this.durationInSec), timezone);
   }
 
   short(): string {
-    function addr(input: string):string {
+    function saddr(input: string):string {
       return input.split(",")[0]
     }
-    const last = this.isLast ? "" : "[L]"
-    const name = `${this.booking.passenger_firstname.charAt(0)}.${this.booking.passenger_lastname.charAt(0)}`;
-    return `${name}, ${this.booking.pickup_time}, ${addr(this.pickupAddress)} ${codeMA(this.assistance)} (${this.booking.booking_id})${last}`;
+    const book = `${this.booking.booking_id} ${this.booking.pickup_time}`
+    const name = `${this.booking.passenger_firstname.charAt(0)}.${this.booking.passenger_lastname.charAt(0)}[${codeMA(this.assistance).padEnd(7)}]`;
+    const addr = `${saddr(this.pickupAddress)}-${saddr(this.dropOffAddress)}`
+    const time = this.adjustedDropoffTime === null ? " " : `${format(this.adjustedPickupTime!, "HH:mm")}-${format(this.adjustedDropoffTime!, "HH:mm")} `
+    const last = this.isLast ? "[L]" : ""
+    return `${book} ${name}: ${time}${addr}${last}`;
   }
 }
 
-export async function DoSchedule(request: AutoScheduleRequest): Promise<string> {
+export async function DoSchedule(request: AutoSchedulingRequest): Promise<AutoSchedulingResponse | string> {
   config.request = request;
   const allTrips = await getSortedTrips();
   const priorityTrips = getPriorityTrips(allTrips);
@@ -155,23 +162,28 @@ export async function DoSchedule(request: AutoScheduleRequest): Promise<string> 
   for (const trips of priorityTrips) {
     await scheduleTrips(plan, trips);
   }
+  config.debug(plainTextPlan(plan))
   if (config.isDebug()) {
-    printPlan(plan);
+    return plainTextPlan(plan)
   }
-  return JSON.stringify(plan);
+  return convertToResponse(plan);
 }
 
-function printPlan(plan: VehicleInfo[]) {
-  console.log();
-  console.log(config.dateStr());
-  for (const shuttle of plan) {
-    console.log();
-    console.log('Shuttle -', shuttle.name());
-    shuttle.trips.forEach((v, idx) => {
-      console.log(v.short());
-    })
-  }
-  console.log();
+function plainTextPlan(plan: VehicleInfo[]): string {
+  return [
+    '=================================================',
+    ` Plan of ${config.dateStr()}`,
+    '======================BEGIN======================',
+    plan.map(v => {
+      return [
+        `Shuttle = ${v.name()}\n`,
+        v.trips.map((t, idx) => {
+          return `${idx} ${t.short()}\n`
+        }),
+      ];
+    }),
+    '=======================END=======================',
+  ].flat().join('\n');
 }
 
 async function scheduleTrips(plan: VehicleInfo[], trips: TripInfo[]) {
@@ -180,42 +192,45 @@ async function scheduleTrips(plan: VehicleInfo[], trips: TripInfo[]) {
     config.debug(`\nSchedule trip: ${trip.short()}\n`)
 
     let bestVehicle: VehicleInfo | null = null;
-    let bestTime: Date | null = null;
+    let bestTime: [Date, Date] | null = null;
 
     for (const vehicle of plan) {
-      const arrivalTime = await vehicle.fitTrip(trip);
-      if (arrivalTime === null) {
-        config.debug(`[ NO ]${vehicle.name().padEnd(8)}:`);
+      const fitTime = await vehicle.fitTrip(trip);
+      if (fitTime === null) {
+        config.debug(`  [NO]${vehicle.name()}`);
       } else if (bestTime === null){
-        config.debug(`[ OK ]${vehicle.name().padEnd(8)}: new      - ${format(arrivalTime, "HH:mm")}`);
+        config.debug(`  [ADD]${vehicle.name()}`);
         bestVehicle = vehicle;
-        bestTime = arrivalTime;
-      } else if (arrivalTime < bestTime) {
+        bestTime = fitTime;
+      } else if (fitTime[0] > bestTime![0]) {
         // new best time
-        config.debug(`[ OK ]${vehicle.name().padEnd(8)}: better   - ${format(arrivalTime, "HH:mm")}`);
+        config.debug(`  [BETTER]${vehicle.name()}: fit: ${format(fitTime[0], "HH:mm")}, current: ${format(bestTime![0], "HH:mm")}`);
         bestVehicle = vehicle;
-        bestTime = arrivalTime;
+        bestTime = fitTime;
       } else {
-        config.debug(`[SKIP]${vehicle.name().padEnd(8)}: not better`);
+        config.debug(`  [SKIP]${vehicle.name()}: fit: ${format(fitTime[0], "HH:mm")}, current: ${format(bestTime![0], "HH:mm")}`);
       }
     }
 
-    // update scheduled time in trip
-    console.assert(bestTime !== null, "empty bestTime")
-
-    trip.scheduledPickupTime = bestTime;
-    trip.scheduledDropoffTime = addSeconds(bestTime!, trip.durationInSec);
-
     if (bestVehicle === null) {
+      // update scheduled time as custom requested
+      trip.adjustedPickupTime = trip.pickupTime;
+      trip.adjustedDropoffTime = trip.dropOffTime;
       // no vehicle can fit this trip, create a new one
       bestVehicle = new VehicleInfo(trip);
       bestVehicle.shuttleIndex = plan.length + 1;
       plan.push(bestVehicle);
-      config.debug(`\n[DECISION]new vehicle: ${bestVehicle.name()}\n`)
+      
+      config.debug(`[DECISION]new vehicle: ${bestVehicle.name()} # ${format(trip.adjustedPickupTime!, "HH:mm")}\n`);
     } else {
+      // this case update scheduled time as real
+      console.assert(bestTime !== null, 'null best time');
+      trip.adjustedPickupTime = bestTime![0];
+      trip.adjustedDropoffTime = bestTime![1];
       // add trip to the best vehicle
       bestVehicle.addTrip(trip);
-      config.debug(`\n[DECISION]exist vehicle: ${bestVehicle.name()}\n`)
+      
+      config.debug(`[DECISION]add to vehicle: ${bestVehicle.name()} # ${format(trip.adjustedPickupTime!, "HH:mm")}\n`);
     }
   }
 }
@@ -228,7 +243,7 @@ async function getSortedTrips(): Promise<TripInfo[]> {
     trips.push(trip)
   }
   // Sort queues by pickupTime of trip
-  trips.sort((lhs, rhs) => lhs.departureTime.getTime() - rhs.departureTime.getTime());
+  trips.sort((lhs, rhs) => lhs.pickupTime.getTime() - rhs.pickupTime.getTime());
 
   // Mark last trip of same passenger
   const passengers = new Set<string>();
@@ -240,6 +255,9 @@ async function getSortedTrips(): Promise<TripInfo[]> {
     }
   }
   config.debug(`converted ${trips.length} booking to trips`);
+  for (const trip of trips) {
+    console.log(trip.short());
+  }
   return trips;
 }
 
@@ -271,13 +289,15 @@ export class VehicleInfo {
     return `${this.shuttleIndex}${code}`
   }
 
-  async fitTrip(nextTrip: TripInfo): Promise<Date | null> {
+  // try next trip on current vehicle, if success, return real start and end time, otherwise null
+  async fitTrip(nextTrip: TripInfo): Promise<[Date, Date]| null> {
     console.assert(this.trips.length > 0, "only fit non-empty vehicle")
 
     const lastTrip = this.trips[this.trips.length - 1];
-    const lastDropoffTime = addSeconds(lastTrip.arrivalTime, config.dropoffUnloadingInSec()); // need leave time for dropoff
+    console.assert(lastTrip.adjustedDropoffTime !== null, "null adjusted time")
+    const lastDropoffTime = addSeconds(lastTrip.adjustedDropoffTime!, config.dropoffUnloadingInSec()); // need leave time for dropoff
 
-    let nextPickupTime = nextTrip.departureTime;
+    let nextPickupTime = nextTrip.pickupTime;
     if (nextTrip.isLast) {
       // for last trip (e.g. return), we can delay with a configured value
       nextPickupTime = addSeconds(nextPickupTime, config.afterPickupInSec())
@@ -285,6 +305,7 @@ export class VehicleInfo {
     
     if (lastDropoffTime > nextPickupTime) {
       // we have no time machine, FF return
+      console.debug(`[NOFIT]${this.name()} - dropoff: ${format(lastDropoffTime, "HH:mm")}, pickup: ${format(nextPickupTime, "HH:mm")}`)
       return null;
     }
 
@@ -295,22 +316,38 @@ export class VehicleInfo {
       const direction = await GetDirection(lastTrip.dropOffAddress, nextTrip.pickupAddress, lastDropoffTime);
       if (direction === null) {
         config.debug(`No routes found for the given query from ${lastTrip.dropOffAddress} to ${nextTrip.pickupAddress}; skip.`);
+        console.debug(`[NOFIT]${this.name()} - no routes`)
         return null;
       }
       estimatedArrival = addSeconds(lastDropoffTime, direction.durationInSec)
     }
 
     if (estimatedArrival > nextPickupTime) {
+      console.debug(`[NOFIT]${this.name()} - estimate: ${format(estimatedArrival, "HH:mm")}, pickup: ${format(nextPickupTime, "HH:mm")}`)
       // no enough time to catch next pickup
       return null
     }
 
-    // shuttle can pickup, need to return the earlist arrival time
-    // for last (e.g. return) trip, the estimated arrival can be later than scheduled pickup time. Any shuttle can arrive before pickup time are same when scheduling
-    // for outgoing trip, the estimated arrival need be earlier than scheduled pickup time. Any shuttle can arrive before pickup time - beforePickup are same when scheduling
-    const requestArrival = nextTrip.isLast ? nextTrip.departureTime : addSeconds(nextPickupTime, config.beforePickupInSec() * -1);
-    // for outgoing trip, we need wait before scheduled pickup time
-    return (estimatedArrival > requestArrival) ? estimatedArrival : requestArrival;
+    // shuttle can pickup, need to return the adjusted pickup/dropoff
+    if (nextTrip.isLast) {
+      // For last (e.g. return) trip, the pickup can be later than booked time. 
+      // Any shuttle can arrive before booked pickup time are same when scheduling
+      const adjustedPickupTime = estimatedArrival > nextTrip.pickupTime ? estimatedArrival : nextTrip.pickupTime;
+      // Dropoff need to be recalculated by the real pickup time
+      const adjustedDropoffTime = addSeconds(adjustedPickupTime, nextTrip.durationInSec);
+      console.debug(`[FIT]${this.name()} - estimate: ${format(estimatedArrival, "HH:mm")}, Apickup: ${format(adjustedPickupTime, "HH:mm")}, Adropoff: ${format(adjustedDropoffTime, "HH:mm")}`)
+      return [adjustedPickupTime, adjustedDropoffTime];
+    } else {
+      // For outgoing trip, the pickup need be earlier than scheduled time.
+      // Any shuttle can arrive before (pickup time - config.beforePickup) are same when scheduling
+      const earliestAcceptable = addSeconds(nextTrip.pickupTime, config.beforePickupInSec() * -1);
+      console.debug(`booking pickup: ${format(nextTrip.pickupTime, "HH:mm")}, earliest: ${format(earliestAcceptable, "HH:mm")}`)
+      const adjustedPickupTime = estimatedArrival > earliestAcceptable ? estimatedArrival : earliestAcceptable;
+      // Even we can get earlier, still wait passenger at booking time to start the trip
+      const adjustedDropoffTime = addSeconds(nextTrip.dropOffTime, nextTrip.durationInSec);
+      console.debug(`[FIT]${this.name()} - estimate: ${format(estimatedArrival, "HH:mm")}, Apickup: ${format(adjustedPickupTime, "HH:mm")}, Adropoff: ${format(adjustedDropoffTime, "HH:mm")}`)
+      return [adjustedPickupTime, adjustedDropoffTime];
+    }
   }
 
   addTrip(nextTrip: TripInfo) {
