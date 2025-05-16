@@ -23,24 +23,23 @@ namespace config {
     }
   }
 
-  // Driver need to arrive in advanced for outgoing trip
+  // Driver can arrive earlier for outgoing trip
   export const beforePickupInSec = (): number => {
-    return request.before_pickup_time ?? globalThis.currentEnv.DEFAULT_BEFORE_PICKUP_TIME;
+    return (request.before_pickup_time ?? globalThis.currentEnv.DEFAULT_BEFORE_PICKUP_TIME) / 1000;
   }
 
-  // Acceptable delay time for returning trip
+  // Driver can arrive later for returning trip
   export const afterPickupInSec = (): number => {
-    return request.after_pickup_time ?? globalThis.currentEnv.DEFAULT_AFTER_PICKUP_TIME;
+    return (request.after_pickup_time ?? globalThis.currentEnv.DEFAULT_AFTER_PICKUP_TIME) / 1000;
   }
 
   // export const pickupLoadingInSec = (): number => {
-  //   return request.pickup_loading_time ?? globalThis.currentEnv.DEFAULT_PICKUP_LOADING_TIME;
+  //   return (request.pickup_loading_time ?? globalThis.currentEnv.DEFAULT_PICKUP_LOADING_TIME) / 1000;
   // }
 
-  // Dropoff unloading time
-  // This is the time it takes to unload the passenger from the vehicle after a booking trip
+  // extra time for dropoff unloading
   export const dropoffUnloadingInSec = (): number => {
-    return request.dropoff_unloading_time ?? globalThis.currentEnv.DEFAULT_DROPOFF_UNLOADING_TIME;
+    return (request.dropoff_unloading_time ?? globalThis.currentEnv.DEFAULT_DROPOFF_UNLOADING_TIME) / 1000;
   }
 }
 
@@ -137,6 +136,10 @@ export class TripInfo {
     this.pickupTime = toZonedTime(pickupTime, timezone);
     this.distanceInMeter = direction.distanceInMeter;
     this.durationInSec = direction.durationInSec;
+
+    // write back to booking
+		booking.travel_distance = direction.distanceInMeter;
+		booking.travel_time = direction.durationInSec;
   }
 
   short(): string {
@@ -182,9 +185,9 @@ export async function DoSchedule(request: AutoSchedulingRequest): Promise<AutoSc
     await scheduleTrips(plan, trips);
   }
   config.debug(plainTextPlan(plan))
-  if (config.isDebug()) {
-    return plainTextPlan(plan)
-  }
+  // if (config.isDebug()) {
+  //   return plainTextPlan(plan)
+  // }
   return convertToResponse(plan);
 }
 
@@ -256,12 +259,12 @@ async function scheduleTrips(plan: VehicleInfo[], trips: TripInfo[]) {
       plan.push(bestVehicle);
       // first trip of the vehicle
       trip.earliestArrivalTime = trip.isLast ? trip.pickupTime : addSeconds(trip.pickupTime, -1 * config.beforePickupInSec());
-      config.debug(`[DECISION]new vehicle: ${bestVehicle.name()} # ${format(trip.earliestArrivalTime, "HH:mm")}\n`);
+      config.debug(`[DECISION]new vehicle: ${bestVehicle.name()} # ${format(trip.earliestArrivalTime, "HH:mm")}`);
     } else {
       // add trip to the best vehicle we found
       bestVehicle.addTrip(trip);
       trip.earliestArrivalTime = bestArrival
-      config.debug(`[DECISION]add to vehicle: ${bestVehicle.name()} # ${format(trip.earliestArrivalTime!, "HH:mm")}\n`);
+      config.debug(`[DECISION]add to vehicle: ${bestVehicle.name()} # ${format(trip.earliestArrivalTime!, "HH:mm")}`);
     }
 
     // if actual arrival later than booking, we need update

@@ -47,7 +47,7 @@ function convertToVehicle(vehicleInfo: VehicleInfo): Vehicle {
 
 function convertToTrip(tripinfo: TripInfo): Trip {
   console.assert(tripinfo.adjustedPickupTime !== null, "null scheduled pickup time");
-  console.assert(tripinfo.adjustedDropoffTime !== null, "null scheduled dropoff time");
+  console.assert(tripinfo.dropoffTime() !== null, "null scheduled dropoff time");
 
   const booking = tripinfo.booking
 
@@ -57,8 +57,8 @@ function convertToTrip(tripinfo: TripInfo): Trip {
   booking.driver_arrival_time = null;
   booking.driver_enroute_time = null;
 
-  booking.scheduled_pickup_time = format(tripinfo.adjustedPickupTime!, "h:mm a..aa") // h:mm AM/PM
-  booking.scheduled_dropoff_time = format(tripinfo.adjustedDropoffTime!, "h:mm a..aa") // h:mm AM/PM
+  booking.scheduled_pickup_time = format(tripinfo.adjustedPickupTime!, "h:mm aa") // h:mm AM/PM
+  booking.scheduled_dropoff_time = format(tripinfo.dropoffTime(), "h:mm aa") // h:mm AM/PM
 
   return {
     bookings: [booking],
@@ -69,17 +69,17 @@ function convertToTrip(tripinfo: TripInfo): Trip {
     program_name: booking.program_name,
     program_timezone: booking.program_timezone,
 
-    first_pickup_time: format(tripinfo.adjustedPickupTime!, "HH:mm"),
 
     first_pickup_address: booking.pickup_address,
     first_pickup_latitude: booking.pickup_latitude,
     first_pickup_longitude: booking.pickup_longitude,
 
-    last_dropoff_time: format(tripinfo.adjustedDropoffTime!, "HH:mm"),
-
     last_dropoff_address: booking.dropoff_address,
     last_dropoff_latitude: booking.dropoff_latitude,
     last_dropoff_longitude: booking.dropoff_longitude,
+
+    first_pickup_time: format(tripinfo.adjustedPickupTime!, "HH:mm"),
+    last_dropoff_time: format(tripinfo.dropoffTime(), "HH:mm"),
 
     driver_id: null,
     driver_firstname: null,

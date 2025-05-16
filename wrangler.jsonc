@@ -28,11 +28,11 @@
 	"vars": {
 		"DEBUG_MODE": true,
 
-		// Extra time (in second) between legs, can be overridden by request
-		"DEFAULT_BEFORE_PICKUP_TIME": 900,
-		"DEFAULT_AFTER_PICKUP_TIME": 900,
-		"DEFAULT_PICKUP_LOADING_TIME": 300,
-		"DEFAULT_DROPOFF_UNLOADING_TIME": 300,
+		// Extra time (in ms) between legs, can be overridden by request
+		"DEFAULT_BEFORE_PICKUP_TIME": 900000,
+		"DEFAULT_AFTER_PICKUP_TIME": 900000,
+		// "DEFAULT_PICKUP_LOADING_TIME": 300000,
+		"DEFAULT_DROPOFF_UNLOADING_TIME": 300000,
 
 		// Check origin in headers
 		"ENABLE_ORIGIN_CHECK": true,
