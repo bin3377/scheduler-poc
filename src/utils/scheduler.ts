@@ -1,7 +1,7 @@
 import { AutoSchedulingRequest, AutoSchedulingResponse, Booking, Trip } from '../interfaces';
 import { convertToResponse } from './convert'
 import { getDateTime, getTimezoneByAddress } from './time'
-import { GetDirection, DirectionResult } from './map'
+import { GetDirection, DirectionResult } from './direction'
 import { addSeconds, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 
@@ -228,7 +228,6 @@ function isBetter(coming: Date, current: Date, trip: TripInfo): boolean {
 
 async function scheduleTrips(plan: VehicleInfo[], trips: TripInfo[]) {
 
-
   for (const trip of trips) {
     config.debug(`[Schedule]: ${trip.short()}`)
 
@@ -368,7 +367,7 @@ export class VehicleInfo {
       config.debug(`[NOFIT]${this.name()} - estimateArrival: ${format(estimatedArrival, "HH:mm")}, latestPickup: ${format(next.latestPickupTime(), "HH:mm")}`);
       return null
     }
-    console.debug(`[FIT]${this.name()} - estimateArrival: ${format(estimatedArrival, "HH:mm")}, latestPickup: ${format(next.latestPickupTime(), "HH:mm")}`);
+    config.debug(`[FIT]${this.name()} - estimateArrival: ${format(estimatedArrival, "HH:mm")}, latestPickup: ${format(next.latestPickupTime(), "HH:mm")}`);
     return estimatedArrival;
   }
 

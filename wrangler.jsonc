@@ -39,7 +39,7 @@
 		"ACCEPTABLE_ORIGINS": [
 			"predev.duetride.io",
 			"duetride.io"
-		]
+		],
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.

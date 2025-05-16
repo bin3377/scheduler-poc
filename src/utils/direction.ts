@@ -1,13 +1,28 @@
+import { CreateCache } from "./cache";
 
 export interface DirectionResult {
   distanceInMeter: number;
   durationInSec: number;
 }
 
-export const GetDirection = async (from: string, to: string, departureTime: Date): 
-Promise<DirectionResult | null> => {
-  return await getDirectionFromGoogle(from, to, departureTime);
-};
+const cache = CreateCache<string, DirectionResult>();
+
+export async function GetDirection(from: string, to: string, departureTime: Date): Promise<DirectionResult | null> {
+
+  if (cache) {
+    const v = cache.get(`${from}|${to}`)
+    if (v) {
+      return v;
+    }
+  }
+
+  const res = await getDirectionFromGoogle(from, to, departureTime);
+  
+  if (cache && res) {
+    cache.put(`${from}|${to}`, res)
+  }
+  return res;
+}
 
 // Define the structure of the Google Maps API response (simplified)
 interface GoogleMapsDirectionsResponse {
