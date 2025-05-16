@@ -6,6 +6,9 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "scheduler-poc",
 	"main": "src/index.ts",
+	"compatibility_flags": [
+		"nodejs_compat",
+	],
 	"compatibility_date": "2025-05-08",
 	"observability": {
 		"enabled": true
@@ -26,7 +29,7 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
 	"vars": {
-		"DEBUG_MODE": true,
+		"DEBUG_MODE": false,
 
 		// Extra time (in ms) between legs, can be overridden by request
 		"DEFAULT_BEFORE_PICKUP_TIME": 900000,

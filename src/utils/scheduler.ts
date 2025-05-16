@@ -5,7 +5,7 @@ import { GetDirection, DirectionResult } from './direction'
 import { addSeconds, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 
-namespace config {
+export namespace config {
 
   export var request: AutoSchedulingRequest;
 
@@ -20,6 +20,15 @@ namespace config {
   export const debug = (...data: any[]) => {
     if (isDebug()) {
       console.debug(...data);
+    }
+  }
+
+  export const assert = (cond: boolean, msg: string) => {
+    if (!cond) {
+      console.error(msg);
+    }
+    if (isDebug()) {
+      throw new Error(msg);
     }
   }
 
@@ -304,12 +313,10 @@ function markLastLeg(trips: TripInfo[]) {
     }
   }
 
-  if (config.isDebug()) {
-    console.log(`Converted ${trips.length} trips:`);
-    trips.forEach((v, idx) => {
-      console.log(idx, v.short());
-    })
-  }
+  config.debug(`Converted ${trips.length} trips:`);
+  trips.forEach((v, idx) => {
+    config.debug(idx, v.short());
+  })
 }
 
 function getPriorityTrips(trips: TripInfo[]):TripInfo[][] {
@@ -342,7 +349,7 @@ export class VehicleInfo {
 
   // try to fit next trip into the vehicle, if possible, return the Date of estimated arrival
   async isTripFit(next: TripInfo): Promise<Date | null> {
-    console.assert(this.trips.length > 0, "only fit non-empty vehicle");
+    config.assert(this.trips.length > 0, "only fit non-empty vehicle");
     const last = this.trips[this.trips.length - 1];
 
     if (last.finishTime() > next.latestPickupTime()) {

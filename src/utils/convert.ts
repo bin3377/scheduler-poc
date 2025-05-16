@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { AutoSchedulingResponse, Trip, Vehicle } from "../interfaces";
-import { TripInfo, VehicleInfo } from "./scheduler";
+import { config, TripInfo, VehicleInfo } from "./scheduler";
 
 export function convertToResponse(plan: VehicleInfo[]): AutoSchedulingResponse {
   const vs = plan.map(convertToVehicle)
@@ -18,7 +18,7 @@ export function convertToResponse(plan: VehicleInfo[]): AutoSchedulingResponse {
 }
 
 function convertToVehicle(vehicleInfo: VehicleInfo): Vehicle {
-  console.assert(vehicleInfo.trips.length > 0, "empty vehicle")
+  config.assert(vehicleInfo.trips.length > 0, "empty vehicle")
 
   const trips = vehicleInfo.trips.map(convertToTrip)
 
@@ -46,8 +46,8 @@ function convertToVehicle(vehicleInfo: VehicleInfo): Vehicle {
 }
 
 function convertToTrip(tripinfo: TripInfo): Trip {
-  console.assert(tripinfo.adjustedPickupTime !== null, "null scheduled pickup time");
-  console.assert(tripinfo.dropoffTime() !== null, "null scheduled dropoff time");
+  config.assert(tripinfo.adjustedPickupTime !== null, "null scheduled pickup time");
+  config.assert(tripinfo.dropoffTime() !== null, "null scheduled dropoff time");
 
   const booking = tripinfo.booking
 

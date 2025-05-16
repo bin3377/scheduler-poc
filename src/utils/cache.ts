@@ -1,12 +1,15 @@
+import { MongoCache } from './mongo';
+
 // Cache configuration
 const enableCache = true;
-const cacheType = "memory";
+let cacheType = "memory"; // seems mongo db is not well supported in cloudflare worker
+
 const memCacheCapacity = 5000;
-const cacheTTL = 3600000;
+const memCacheTTL = 3600000;
 
 interface ICache<K, V> {
-  get(key: K): V | undefined
-  put(key: K, value: V): void
+  get(key: K): V | undefined | Promise<V | undefined>
+  put(key: K, value: V): void | Promise<void>
 }
 
 export function CreateCache<K, V>(): ICache<K, V> | null {
@@ -14,7 +17,9 @@ export function CreateCache<K, V>(): ICache<K, V> | null {
     return null;
   }
   if (cacheType === 'memory') {
-    return new LRUCache<K, V>(memCacheCapacity, cacheTTL);
+    return new LRUCache<K, V>(memCacheCapacity, memCacheTTL);
+  } else if (cacheType === 'mongodb') {
+    return new MongoCache<K, V>();
   }
   return null;
 }

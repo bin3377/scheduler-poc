@@ -10,7 +10,7 @@ const cache = CreateCache<string, DirectionResult>();
 export async function GetDirection(from: string, to: string, departureTime: Date): Promise<DirectionResult | null> {
 
   if (cache) {
-    const v = cache.get(`${from}|${to}`)
+    const v = await cache.get(`${from}|${to}`)
     if (v) {
       return v;
     }
@@ -19,7 +19,7 @@ export async function GetDirection(from: string, to: string, departureTime: Date
   const res = await getDirectionFromGoogle(from, to, departureTime);
   
   if (cache && res) {
-    cache.put(`${from}|${to}`, res)
+    await cache.put(`${from}|${to}`, res)
   }
   return res;
 }
