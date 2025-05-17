@@ -1,5 +1,5 @@
 import express, { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
-import { DoSchedule } from './utils/scheduler';
+import { Scheduler } from './utils/scheduler';
 import { DoEnqueue, GetTask } from './utils/queue';
 import { AutoSchedulingRequest } from './interfaces';
 
@@ -64,7 +64,7 @@ app.post('/v1_webapp_auto_scheduling', async (req: ExpressRequest, res: ExpressR
     checkOrigin(req)
     // req.body is already parsed by express.json() middleware
     const jsonData: unknown = req.body;
-    const rspn = await DoSchedule(jsonData as AutoSchedulingRequest);
+    const rspn = new Scheduler(env, jsonData as AutoSchedulingRequest);
 
     if (typeof rspn === 'string') {
       res.status(200).type('text/plain').send(rspn);

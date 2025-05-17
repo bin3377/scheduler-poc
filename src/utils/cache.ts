@@ -1,20 +1,29 @@
 import { MongoCache } from './mongo';
-import { env } from '../index';
+
+export interface CacheConfig {
+  ENABLE_CACHE: boolean,
+  CACHE_TYPE: string,
+  CACHE_MEM_CAPACITY: number,
+  CACHE_TTL: number,
+  CACHE_MONGODB_URI: string,
+  CACHE_MONGODB_DB: string,
+  CACHE_MONGODB_COLLECTION: string,
+}
 
 export interface ICache<K, V> {
   get(key: K): V | undefined | Promise<V | undefined>
   put(key: K, value: V): void | Promise<void>
 }
 
-export function CreateCache<K, V>(): ICache<K, V> | null {
-  if (!env.ENABLE_CACHE) {
+export function CreateCache<K, V>(config: CacheConfig): ICache<K, V> | null {
+  if (!config.ENABLE_CACHE) {
     return null;
   }
-  switch (env.CACHE_TYPE) {
+  switch (config.CACHE_TYPE) {
     case 'memory':
-      return new LRUCache<K, V>(env.CACHE_MEM_CAPACITY, env.CACHE_TTL);
+      return new LRUCache<K, V>(config.CACHE_MEM_CAPACITY, config.CACHE_TTL);
     case 'mongodb':
-      return new MongoCache<K, V>(env.CACHE_MONGODB_URI, env.CACHE_MONGODB_DB, env.CACHE_MONGODB_COLLECTION, env.CACHE_TTL);
+      return new MongoCache<K, V>(config.CACHE_MONGODB_URI, config.CACHE_MONGODB_DB, config.CACHE_MONGODB_COLLECTION, config.CACHE_TTL);
   }
   return null;
 }

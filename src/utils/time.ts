@@ -1,5 +1,5 @@
 import timezoneMapping from './timezone_mapper.json';
-
+import { addSeconds, format } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz'
 
 interface TimezoneEntry {
@@ -74,6 +74,14 @@ export function getTimezoneByAddress(address: string): string | null {
   }
 
   return getTimezoneByZipcode(zipcode);
+}
+
+export function to12Hr(time: Date): string {
+  return format(time, "HH:mm")
+}
+
+export function to24Hr(time: Date): string {
+  return format(time, "h:mm aa")
 }
 
 const mapping = timezoneMapping as TimezoneEntry[];
