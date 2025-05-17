@@ -4,6 +4,7 @@ import { getDateTime, getTimezoneByAddress } from './time'
 import { GetDirection, DirectionResult } from './direction'
 import { addSeconds, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
+import { env } from '../index';
 
 export namespace config {
 
@@ -14,7 +15,7 @@ export namespace config {
   }
 
   export const isDebug = (): boolean => {
-    return request.debug ?? globalThis.currentEnv.DEBUG_MODE;
+    return request.debug ?? env.DEBUG_MODE;
   }
 
   export const debug = (...data: any[]) => {
@@ -26,29 +27,29 @@ export namespace config {
   export const assert = (cond: boolean, msg: string) => {
     if (!cond) {
       console.error(msg);
-    }
-    if (isDebug()) {
-      throw new Error(msg);
+      if (isDebug()) {
+        throw new Error(msg);
+      }
     }
   }
 
   // Driver can arrive earlier for outgoing trip
   export const beforePickupInSec = (): number => {
-    return (request.before_pickup_time ?? globalThis.currentEnv.DEFAULT_BEFORE_PICKUP_TIME) / 1000;
+    return (request.before_pickup_time ?? env.DEFAULT_BEFORE_PICKUP_TIME) / 1000;
   }
 
   // Driver can arrive later for returning trip
   export const afterPickupInSec = (): number => {
-    return (request.after_pickup_time ?? globalThis.currentEnv.DEFAULT_AFTER_PICKUP_TIME) / 1000;
+    return (request.after_pickup_time ?? env.DEFAULT_AFTER_PICKUP_TIME) / 1000;
   }
 
   // export const pickupLoadingInSec = (): number => {
-  //   return (request.pickup_loading_time ?? globalThis.currentEnv.DEFAULT_PICKUP_LOADING_TIME) / 1000;
+  //   return (request.pickup_loading_time ?? env.DEFAULT_PICKUP_LOADING_TIME) / 1000;
   // }
 
   // extra time for dropoff unloading
   export const dropoffUnloadingInSec = (): number => {
-    return (request.dropoff_unloading_time ?? globalThis.currentEnv.DEFAULT_DROPOFF_UNLOADING_TIME) / 1000;
+    return (request.dropoff_unloading_time ?? env.DEFAULT_DROPOFF_UNLOADING_TIME) / 1000;
   }
 }
 
@@ -349,7 +350,7 @@ export class VehicleInfo {
 
   // try to fit next trip into the vehicle, if possible, return the Date of estimated arrival
   async isTripFit(next: TripInfo): Promise<Date | null> {
-    config.assert(this.trips.length > 0, "only fit non-empty vehicle");
+    config.assert(this.trips.length > 0, 'only fit non-empty vehicle');
     const last = this.trips[this.trips.length - 1];
 
     if (last.finishTime() > next.latestPickupTime()) {

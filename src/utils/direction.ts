@@ -1,14 +1,26 @@
-import { CreateCache } from "./cache";
+import { env } from "..";
+import { CreateCache, ICache } from "./cache";
 
 export interface DirectionResult {
   distanceInMeter: number;
   durationInSec: number;
 }
 
-const cache = CreateCache<string, DirectionResult>();
+var cacheCreated = false;
+let cache: ICache<String, DirectionResult> | null = null;
+
+function getCache(): ICache<String, DirectionResult> | null {
+  if (!cacheCreated) {
+    cacheCreated = true;
+    cache = CreateCache();
+  }
+  return cache;
+}
 
 export async function GetDirection(from: string, to: string, departureTime: Date): Promise<DirectionResult | null> {
-
+  
+  let cache = getCache();
+  
   if (cache) {
     const v = await cache.get(`${from}|${to}`)
     if (v) {
@@ -43,7 +55,7 @@ interface GoogleMapsDirectionsResponse {
 }
 
 async function getDirectionFromGoogle(from: string, to: string, departureTime: Date): Promise<DirectionResult | null> {
-  const apiKey =  globalThis.currentEnv.API_TOKEN;
+  const apiKey =  env.GOOGLE_API_TOKEN;
   if (!apiKey) {
     throw new Error('Google Maps API key (API_TOKEN) not found in environment.');
   }

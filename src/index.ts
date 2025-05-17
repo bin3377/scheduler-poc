@@ -1,101 +1,102 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import express, { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
+import { DoSchedule } from './utils/scheduler'; // Adjusted path
+import { AutoSchedulingRequest } from './interfaces'; // Adjusted path
 
-import { DoSchedule } from '../src/utils/scheduler'
-import { AutoSchedulingRequest, AutoSchedulingResponse } from './interfaces'; // Added import
+require('dotenv').config();
+require('dotenv').config({ path: './.env.local' });
 
-declare global {
-  var currentEnv: Env;
-	var currentCtx: ExecutionContext;
-}
+// Load environment variables 
+export const env = {
+  DEBUG_MODE: process.env.DEBUG_MODE === 'true',
+  PORT: Number(process.env.PORT),
+  
+  ENABLE_ORIGIN_CHECK: process.env.ENABLE_ORIGIN_CHECK === 'true',
+  ACCEPTABLE_ORIGINS: String(process.env.ACCEPTABLE_ORIGINS).split(','),
+  
+  DEFAULT_BEFORE_PICKUP_TIME: Number(process.env.DEFAULT_BEFORE_PICKUP_TIME),
+  DEFAULT_AFTER_PICKUP_TIME: Number(process.env.DEFAULT_AFTER_PICKUP_TIME),
+  DEFAULT_DROPOFF_UNLOADING_TIME: Number(process.env.DEFAULT_DROPOFF_UNLOADING_TIME),
+  
+  GOOGLE_API_TOKEN: String(process.env.GOOGLE_API_TOKEN),
 
-export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-		globalThis.currentEnv = env
-		globalThis.currentCtx = ctx
+  ENABLE_CACHE: process.env.ENABLE_CACHE === 'true',
+  CACHE_TYPE: String(process.env.CACHE_TYPE),
+  CACHE_TTL: Number(process.env.CACHE_TTL),
+  
+  CACHE_MEM_CAPACITY: Number(process.env.CACHE_MEM_CAPACITY),
+  
+  CACHE_MONGODB_URI: String(process.env.CACHE_MONGODB_URI),
+  CACHE_MONGODB_DB: String(process.env.CACHE_MONGODB_DB),
+  CACHE_MONGODB_COLLECTION: String(process.env.CACHE_MONGODB_COLLECTION),
+};
 
-		const url = new URL(request.url);
-		const path = url.pathname;
+const app = express();
 
-		switch (path) {
-			case '/v1_webapp_auto_scheduling':
-				return await autoSchedule(request, env, ctx);
-			case '/':
-				return await root(request, env, ctx);
-			default:
-				return new Response('Not Found', { status: 404 });
-		}
-	},
-} satisfies ExportedHandler<Env>;
+// Middleware to parse JSON bodies
+app.use(express.json());
 
-async function root(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-	console.log('Handling / path');
+// Middleware for basic logging (optional)
+app.use((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
 
-	try {
-		const options = {
-			headers: { 'content-type': 'application/json;charset=UTF-8' },
-		};
-		return new Response(JSON.stringify(null), options);
-	} catch (error) {
-		return new Response(JSON.stringify("failed"), {
-			status: 500,
-			headers: { 'Content-Type': 'application/json' },
-		});
-	}
-}
+// Route for /
+app.get('/', async (req: ExpressRequest, res: ExpressResponse) => {
+  console.log('Handling / path');
+  try {
+    // Cloudflare worker returned null, Express can send an empty JSON object or similar
+    res.status(200).json(null);
+  } catch (error) {
+    console.error('Error in / handler:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
-async function autoSchedule(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-	if (env.ENABLE_ORIGIN_CHECK) {
-		const origin = request.headers.get('Origin');
-		// Cast to readonly string[] to satisfy TypeScript when using .includes with a general string
-		if (!origin || !(env.ACCEPTABLE_ORIGINS as readonly string[]).includes(origin)) {
-			return new Response(JSON.stringify({ error: 'Forbidden - Invalid origin' }), {
-				status: 403,
-				headers: { 'Content-Type': 'application/json' },
-			});
-		}
-	}
+// Route for /v1_webapp_auto_scheduling
+app.post('/v1_webapp_auto_scheduling', async (req: ExpressRequest, res: ExpressResponse) => {
+  console.debug(env)
+  if (env.ENABLE_ORIGIN_CHECK) {
+    const origin = req.get('Origin');
+    if (!origin || !env.ACCEPTABLE_ORIGINS.includes(origin)) {
+      return res.status(403).json({ error: 'Forbidden - Invalid origin' });
+    }
+  }
 
-	if (request.method !== 'POST') {
-		return new Response('Method Not Allowed', { status: 405 });
-	}
+  try {
+    // req.body is already parsed by express.json() middleware
+    const jsonData: unknown = req.body;
+    const rspn = await DoSchedule(jsonData as AutoSchedulingRequest);
 
-	try {
-		const jsonData: unknown = await request.json();
-		const rspn = await DoSchedule(jsonData as AutoSchedulingRequest)
+    if (typeof rspn === 'string') {
+      // If DoSchedule returns a plain string, send it as text/plain
+      // The original worker didn't specify content type for string response,
+      // but it's good practice.
+      res.status(200).type('text/plain').send(rspn);
+    } else {
+      // If it's an object, send as JSON
+      res.status(200).json(rspn);
+    }
+  } catch (error) {
+    if (error instanceof SyntaxError) { // This check might be less relevant if express.json() handles it
+      return res.status(400).json({ error: 'Invalid JSON payload' });
+    }
+    console.error('Error processing /v1_webapp_auto_scheduling request:', error);
+    // Ensure error is an instance of Error to access message property safely
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    res.status(500).json({ error: 'Internal Server Error', details: errorMessage });
+  }
+});
 
-		if (typeof rspn === 'string') {
-			return new Response(rspn, {
-				status: 200,
-			})
-		} else {
-			return new Response(JSON.stringify(rspn), {
-				status: 200,
-				headers: { 'Content-Type': 'application/json' },
-			});
-		}
+// Catch-all for 404 Not Found
+app.use((req: ExpressRequest, res: ExpressResponse) => {
+  res.status(404).send('Not Found');
+});
 
-	} catch (error) {
-		if (error instanceof SyntaxError) {
-			return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
-				status: 400,
-				headers: { 'Content-Type': 'application/json' },
-			});
-		}
-		console.error('Error processing request:', error);
-		return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
-			status: 500,
-			headers: { 'Content-Type': 'application/json' },
-		});
-	}
-}
+const PORT = env.PORT;
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
+
+// Export the app for potential testing or programmatic use (optional)
+export default app;

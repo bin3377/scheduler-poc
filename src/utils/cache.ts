@@ -1,25 +1,20 @@
 import { MongoCache } from './mongo';
+import { env } from '../index';
 
-// Cache configuration
-const enableCache = true;
-let cacheType = "memory"; // seems mongo db is not well supported in cloudflare worker
-
-const memCacheCapacity = 5000;
-const memCacheTTL = 3600000;
-
-interface ICache<K, V> {
+export interface ICache<K, V> {
   get(key: K): V | undefined | Promise<V | undefined>
   put(key: K, value: V): void | Promise<void>
 }
 
 export function CreateCache<K, V>(): ICache<K, V> | null {
-  if (!enableCache) {
+  if (!env.ENABLE_CACHE) {
     return null;
   }
-  if (cacheType === 'memory') {
-    return new LRUCache<K, V>(memCacheCapacity, memCacheTTL);
-  } else if (cacheType === 'mongodb') {
-    return new MongoCache<K, V>();
+  switch (env.CACHE_TYPE) {
+    case 'memory':
+      return new LRUCache<K, V>(env.CACHE_MEM_CAPACITY, env.CACHE_TTL);
+    case 'mongodb':
+      return new MongoCache<K, V>(env.CACHE_MONGODB_URI, env.CACHE_MONGODB_DB, env.CACHE_MONGODB_COLLECTION, env.CACHE_TTL);
   }
   return null;
 }
