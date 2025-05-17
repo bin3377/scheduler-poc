@@ -115,3 +115,4 @@ export interface Trip {
   trip_complete: boolean;
   bookings: Booking[];
 }
+

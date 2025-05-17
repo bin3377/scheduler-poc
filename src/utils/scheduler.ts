@@ -1,4 +1,4 @@
-import { AutoSchedulingRequest, AutoSchedulingResponse, Booking, Trip } from '../interfaces';
+import { AutoSchedulingRequest, AutoSchedulingResponse, Booking } from '../interfaces';
 import { convertToResponse } from './convert'
 import { getDateTime, getTimezoneByAddress } from './time'
 import { GetDirection, DirectionResult } from './direction'

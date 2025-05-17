@@ -1,6 +1,7 @@
 import express, { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
-import { DoSchedule } from './utils/scheduler'; // Adjusted path
-import { AutoSchedulingRequest } from './interfaces'; // Adjusted path
+import { DoSchedule } from './utils/scheduler';
+import { DoEnqueue } from './utils/queue';
+import { AutoSchedulingRequest } from './interfaces';
 
 require('dotenv').config();
 require('dotenv').config({ path: './.env.local' });
@@ -28,6 +29,12 @@ export const env = {
   CACHE_MONGODB_URI: String(process.env.CACHE_MONGODB_URI),
   CACHE_MONGODB_DB: String(process.env.CACHE_MONGODB_DB),
   CACHE_MONGODB_COLLECTION: String(process.env.CACHE_MONGODB_COLLECTION),
+
+  TASK_TTL: Number(process.env.CACHE_TTL),
+  TASK_MONGODB_URI: String(process.env.TASK_MONGODB_URI),
+  TASK_MONGODB_DB: String(process.env.TASK_MONGODB_DB),
+  TASK_MONGODB_COLLECTION: String(process.env.TASK_MONGODB_COLLECTION),
+  
 };
 
 const app = express();
@@ -48,13 +55,7 @@ app.use((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
 // Route for /
 app.get('/', async (req: ExpressRequest, res: ExpressResponse) => {
   console.log('Handling / path');
-  try {
-    // Cloudflare worker returned null, Express can send an empty JSON object or similar
-    res.status(200).json(null);
-  } catch (error) {
-    console.error('Error in / handler:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
+  res.status(200).json({});
 });
 
 // Route for /v1_webapp_auto_scheduling
@@ -72,13 +73,7 @@ app.post('/v1_webapp_auto_scheduling', async (req: ExpressRequest, res: ExpressR
       res.status(200).json(rspn);
     }
   } catch (error) {
-    if (error instanceof OriginForbiddenError) {
-      return res.status(403).json({ error: 'Forbidden - Invalid origin' });
-    }
-    console.error('Error processing /v1_webapp_auto_scheduling request:', error);
-    // Ensure error is an instance of Error to access message property safely
-    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-    res.status(500).json({ error: 'Internal Server Error', details: errorMessage });
+    errorProcessing(req, res, error);
   }
 });
 
@@ -86,25 +81,16 @@ app.post('/v1_webapp_auto_scheduling', async (req: ExpressRequest, res: ExpressR
 app.post('/v1_webapp_auto_scheduling/enqueue', async (req: ExpressRequest, res: ExpressResponse) => {
   try {
     checkOrigin(req)
+    
     // req.body is already parsed by express.json() middleware
     const jsonData: unknown = req.body;
-    const rspn = await DoSchedule(jsonData as AutoSchedulingRequest);
+    const taskId = await DoEnqueue(jsonData as AutoSchedulingRequest);
 
-    if (typeof rspn === 'string') {
-      // If DoSchedule returns a plain string, send it as text/plain
-      res.status(200).type('text/plain').send(rspn);
-    } else {
-      // If it's an object, send as JSON
-      res.status(200).json(rspn);
-    }
+    res.status(201).json({
+      taskId: taskId,
+    });
   } catch (error) {
-    if (error instanceof OriginForbiddenError) {
-      return res.status(403).json({ error: 'Forbidden - Invalid origin' });
-    }
-    console.error('Error processing /v1_webapp_auto_scheduling/enqueue request:', error);
-    // Ensure error is an instance of Error to access message property safely
-    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-    res.status(500).json({ error: 'Internal Server Error', details: errorMessage });
+    errorProcessing(req, res, error);
   }
 });
 
@@ -136,4 +122,14 @@ function checkOrigin(req: ExpressRequest) {
       throw new OriginForbiddenError('Forbidden - Invalid origin');
     }
   }
+}
+
+function errorProcessing(req: ExpressRequest, res: ExpressResponse, error: any) {
+  console.error(`error when processing ${req.path}:`, error);
+  if (error instanceof OriginForbiddenError) {
+    return res.status(403).json({ error: 'Forbidden - Invalid origin' });
+  }
+
+  const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+  res.status(500).json({ error: 'Internal Server Error', details: errorMessage });
 }
