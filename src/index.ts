@@ -1,6 +1,6 @@
 import express, { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
 import { DoSchedule } from './utils/scheduler';
-import { DoEnqueue } from './utils/queue';
+import { DoEnqueue, GetTask } from './utils/queue';
 import { AutoSchedulingRequest } from './interfaces';
 
 require('dotenv').config();
@@ -89,6 +89,29 @@ app.post('/v1_webapp_auto_scheduling/enqueue', async (req: ExpressRequest, res: 
     res.status(201).json({
       taskId: taskId,
     });
+  } catch (error) {
+    errorProcessing(req, res, error);
+  }
+});
+
+app.get('/v1_webapp_auto_scheduling/:taskId', async (req: ExpressRequest, res: ExpressResponse) => {
+  try {
+    checkOrigin(req)
+    const taskId = req.params.taskId;
+    // Assuming you have a function to get the task status by taskId
+    const task = await GetTask(taskId);
+    if (task) {
+      res.status(200).json({
+        taskId: taskId,
+        status: task.status,
+        result: task.responseBody ? JSON.parse(task.responseBody) : undefined,
+        error: task.errorMessage,
+      });
+    } else {
+      res.status(404).json({
+        error: 'Task not found',
+      });
+    }
   } catch (error) {
     errorProcessing(req, res, error);
   }

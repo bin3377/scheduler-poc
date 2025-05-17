@@ -5,6 +5,7 @@ import { v4 } from 'uuid';
 import { env } from '..';
 
 interface Task {
+  _id?: string,
   taskId: string,
   requestBody: string,
   status: string,
@@ -42,4 +43,19 @@ export async function DoEnqueue(request: AutoSchedulingRequest): Promise<string>
   })
 
   return taskId;
+}
+
+export async function GetTask(taskId: string): Promise<Task | undefined> {
+  const client = new MongoClient(env.TASK_MONGODB_URI);
+  await client.connect();
+
+  const db = client.db(env.TASK_MONGODB_DB);
+  const collection = db.collection(env.TASK_MONGODB_COLLECTION);
+  console.log(`getting ${taskId}`)
+  const doc = await collection.findOne({ taskId: taskId })
+  if (doc) {
+    const task = doc as unknown as Task;
+    return task;
+  }
+  return undefined;
 }
