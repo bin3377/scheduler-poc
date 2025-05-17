@@ -32,6 +32,10 @@ export const env = {
 
 const app = express();
 
+if (env.DEBUG_MODE) {
+  console.debug(env)
+}
+
 // Middleware to parse JSON bodies
 app.use(express.json());
 
@@ -55,7 +59,6 @@ app.get('/', async (req: ExpressRequest, res: ExpressResponse) => {
 
 // Route for /v1_webapp_auto_scheduling
 app.post('/v1_webapp_auto_scheduling', async (req: ExpressRequest, res: ExpressResponse) => {
-  console.debug(env)
   if (env.ENABLE_ORIGIN_CHECK) {
     const origin = req.get('Origin');
     if (!origin || !env.ACCEPTABLE_ORIGINS.includes(origin)) {
