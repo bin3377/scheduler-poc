@@ -1,15 +1,7 @@
-import { CreateCache, ICache } from "./cache";
+import { CacheConfig, CreateCache, ICache } from "./cache";
 
-export interface DirectionConfig {
-  GOOGLE_API_TOKEN: string,
-
-  ENABLE_CACHE: boolean,
-  CACHE_TYPE: string,
-  CACHE_MEM_CAPACITY: number,
-  CACHE_TTL: number,
-  CACHE_MONGODB_URI: string,
-  CACHE_MONGODB_DB: string,
-  CACHE_MONGODB_COLLECTION: string,
+export interface DirectionConfig extends CacheConfig {
+  readonly GOOGLE_API_TOKEN: string,
 }
 
 export interface DirectionResult {
@@ -35,7 +27,7 @@ function getCache(): ICache<String, DirectionResult> | null {
 
 export async function GetDirection(from: string, to: string, departureTime: Date): Promise<DirectionResult | null> {
   
-  let cache = getCache();
+  const cache = getCache();
   
   if (cache) {
     const v = await cache.get(`${from}|${to}`)

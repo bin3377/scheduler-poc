@@ -116,3 +116,9 @@ export interface Trip {
   bookings: Booking[];
 }
 
+export interface TaskResponse {
+  taskId: string,
+  status: string,
+  result: any,
+  error?: string,
+}

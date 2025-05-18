@@ -1,24 +1,14 @@
 import { AutoSchedulingRequest, AutoSchedulingResponse, Booking, Trip, Vehicle } from '../interfaces';
 import { getDateTime, getTimezoneByAddress, to12Hr, to24Hr } from './time'
-import { Init, GetDirection, DirectionResult } from './direction'
+import { Init, GetDirection, DirectionResult, DirectionConfig } from './direction'
 import { addSeconds } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 
-export interface SchedulerConfig {
+export interface SchedulerConfig extends DirectionConfig {
   DEBUG_MODE: boolean,
   DEFAULT_BEFORE_PICKUP_TIME: number,
   DEFAULT_AFTER_PICKUP_TIME: number,
   DEFAULT_DROPOFF_UNLOADING_TIME: number,
-
-  GOOGLE_API_TOKEN: string,
-
-  ENABLE_CACHE: boolean,
-  CACHE_TYPE: string,
-  CACHE_MEM_CAPACITY: number,
-  CACHE_TTL: number,
-  CACHE_MONGODB_URI: string,
-  CACHE_MONGODB_DB: string,
-  CACHE_MONGODB_COLLECTION: string,
 }
 
 class context {
@@ -124,7 +114,8 @@ export class Scheduler {
     this.context = new context(config, request);
   }
 
-  async DoSchedule(): Promise<AutoSchedulingResponse> {
+  // calculate the plan
+  async Calculate(): Promise<AutoSchedulingResponse> {
     const allTrips = await this.getTripsFromBooking(this.request.bookings);
     this.markLastLeg(allTrips)
     const priorityTrips = this.getPriorityTrips(allTrips);

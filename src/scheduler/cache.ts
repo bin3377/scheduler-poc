@@ -1,13 +1,13 @@
-import { MongoCache } from './mongo';
+import { Collection, MongoClient } from 'mongodb';
 
 export interface CacheConfig {
-  ENABLE_CACHE: boolean,
-  CACHE_TYPE: string,
-  CACHE_MEM_CAPACITY: number,
-  CACHE_TTL: number,
-  CACHE_MONGODB_URI: string,
-  CACHE_MONGODB_DB: string,
-  CACHE_MONGODB_COLLECTION: string,
+  readonly ENABLE_CACHE: boolean,
+  readonly CACHE_TYPE: string,
+  readonly CACHE_MEM_CAPACITY: number,
+  readonly CACHE_TTL: number,
+  readonly CACHE_MONGODB_URI: string,
+  readonly CACHE_MONGODB_DB: string,
+  readonly CACHE_MONGODB_COLLECTION: string,
 }
 
 export interface ICache<K, V> {
@@ -34,9 +34,9 @@ type CacheItem<V> = {
 };
 
 class LRUCache<K, V> {
-  private cache: Map<K, CacheItem<V>>;
-  private capacity: number;
-  private TTL: number | null;
+  private readonly cache: Map<K, CacheItem<V>>;
+  private readonly capacity: number;
+  private readonly TTL: number | null;
 
   constructor(capacity: number, ttl: number | null = null) {
     if (capacity <= 0) throw new Error("Capacity must be greater than 0");
@@ -106,5 +106,62 @@ class LRUCache<K, V> {
       }
     }
     return result;
+  }
+}
+
+class MongoCache<K, V> {
+
+  private readonly uri: string;
+  private readonly dbName: string;
+  private readonly collectionName: string;
+  private readonly ttl: number;
+
+  private collection: Collection | null = null;
+
+  constructor(uri: string, dbName: string, collectionName: string, ttl: number) {
+    this.uri = uri;
+    this.dbName = dbName;
+    this.collectionName = collectionName;
+    this.ttl = ttl;
+  }
+
+  private async getMongoCollection(): Promise<Collection> {
+    if (!this.collection) {
+      const client = new MongoClient(this.uri);
+      await client.connect();
+      const db = client.db(this.dbName);
+      this.collection = db.collection(this.collectionName);
+
+      await this.collection.createIndex(
+        { key: 1 },
+        { unique: true },
+      );
+
+      await this.collection.createIndex(
+        { createdAt: 1 },
+        { expireAfterSeconds: this.ttl / 1000 },
+      );
+    }
+
+    return this.collection;
+  }
+
+  async get(key: K): Promise<V | undefined> {
+    const collection = await this.getMongoCollection();
+    const doc = await collection.findOne({ key: key })
+    if (doc) {
+      const v = doc.value as V;
+      return v;
+    }
+    return undefined;
+  }
+
+  async put(key: K, value: V): Promise<void> {
+    const collection = await this.getMongoCollection();
+    await collection.insertOne({
+      key: key,
+      value: value,
+      createdAt: new Date(),
+    });
   }
 }

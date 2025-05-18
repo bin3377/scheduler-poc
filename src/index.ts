@@ -1,7 +1,10 @@
+import Piscina from 'piscina';
 import express, { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from 'express';
-import { Scheduler } from './utils/scheduler';
-import { DoEnqueue, GetTask } from './utils/queue';
+import { Scheduler } from './scheduler/scheduler';
+import { TaskManager } from './processor/task';
 import { AutoSchedulingRequest } from './interfaces';
+import { StartProcessor } from './processor/processor';
+import path from 'path';
 
 require('dotenv').config();
 require('dotenv').config({ path: './.env.local' });
@@ -9,6 +12,7 @@ require('dotenv').config({ path: './.env.local' });
 // Load environment variables 
 export const env = {
   DEBUG_MODE: process.env.DEBUG_MODE === 'true',
+
   PORT: Number(process.env.PORT),
 
   ENABLE_ORIGIN_CHECK: process.env.ENABLE_ORIGIN_CHECK === 'true',
@@ -34,7 +38,10 @@ export const env = {
   TASK_MONGODB_URI: String(process.env.TASK_MONGODB_URI),
   TASK_MONGODB_DB: String(process.env.TASK_MONGODB_DB),
   TASK_MONGODB_COLLECTION: String(process.env.TASK_MONGODB_COLLECTION),
-  
+
+  PROCESSOR_THREAD_NUMBER: Number(process.env.PROCESSOR_THREAD_NUMBER),
+  PROCESSOR_BATCH_SIZE: Number(process.env.PROCESSOR_BATCH_SIZE),
+  PROCESSOR_INTERVAL: Number(process.env.PROCESSOR_INTERVAL),
 };
 
 const app = express();
@@ -61,17 +68,13 @@ app.get('/', async (req: ExpressRequest, res: ExpressResponse) => {
 // Route for /v1_webapp_auto_scheduling
 app.post('/v1_webapp_auto_scheduling', async (req: ExpressRequest, res: ExpressResponse) => {
   try {
-    checkOrigin(req)
-    // req.body is already parsed by express.json() middleware
-    const jsonData: unknown = req.body;
-    const rspn = new Scheduler(env, jsonData as AutoSchedulingRequest);
 
-    if (typeof rspn === 'string') {
-      res.status(200).type('text/plain').send(rspn);
-    } else {
-      // If it's an object, send as JSON
-      res.status(200).json(rspn);
-    }
+    checkOrigin(req)
+    const scheduler = new Scheduler(env, req.body as AutoSchedulingRequest);
+    const rspn = await scheduler.Calculate();
+
+    res.status(200).json(rspn);
+
   } catch (error) {
     errorProcessing(req, res, error);
   }
@@ -80,15 +83,13 @@ app.post('/v1_webapp_auto_scheduling', async (req: ExpressRequest, res: ExpressR
 // Route for /v1_webapp_auto_scheduling/enqueue
 app.post('/v1_webapp_auto_scheduling/enqueue', async (req: ExpressRequest, res: ExpressResponse) => {
   try {
-    checkOrigin(req)
-    
-    // req.body is already parsed by express.json() middleware
-    const jsonData: unknown = req.body;
-    const taskId = await DoEnqueue(jsonData as AutoSchedulingRequest);
 
-    res.status(201).json({
-      taskId: taskId,
-    });
+    checkOrigin(req)
+    const taskManager = new TaskManager(env);
+    const taskId = await taskManager.CreateTask(req.body as AutoSchedulingRequest);
+
+    res.status(201).json({ taskId: taskId });
+
   } catch (error) {
     errorProcessing(req, res, error);
   }
@@ -98,19 +99,14 @@ app.get('/v1_webapp_auto_scheduling/:taskId', async (req: ExpressRequest, res: E
   try {
     checkOrigin(req)
     const taskId = req.params.taskId;
-    // Assuming you have a function to get the task status by taskId
-    const task = await GetTask(taskId);
+
+    const taskManager = new TaskManager(env);
+    const task = await taskManager.GetTask(taskId);
+
     if (task) {
-      res.status(200).json({
-        taskId: taskId,
-        status: task.status,
-        result: task.responseBody ? JSON.parse(task.responseBody) : undefined,
-        error: task.errorMessage,
-      });
+      res.status(200).json(task);
     } else {
-      res.status(404).json({
-        error: 'Task not found',
-      });
+      res.status(404).json({ error: 'Task not found' });
     }
   } catch (error) {
     errorProcessing(req, res, error);
@@ -118,17 +114,18 @@ app.get('/v1_webapp_auto_scheduling/:taskId', async (req: ExpressRequest, res: E
 });
 
 // Catch-all for 404 Not Found
-app.use((req: ExpressRequest, res: ExpressResponse) => {
+app.use((_: ExpressRequest, res: ExpressResponse) => {
   res.status(404).send('Not Found');
 });
 
 const PORT = env.PORT;
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
 
-// Export the app for potential testing or programmatic use (optional)
-export default app;
+export default app
+
+StartProcessor(env)
 
 class OriginForbiddenError extends Error {
   constructor(message: string) {
