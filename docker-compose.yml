@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - CACHE_MONGODB_URI=mongodb://mongo:27017
+      - TASK_MONGODB_URI=mongodb://mongo:27017
+      - TASK_MONGODB_DB=scheduler
+      - TASK_MONGODB_COLLECTION=tasks
+      - GOOGLE_API_TOKEN=TBF
+      - DEBUG_MODE=true
+    depends_on:
+      - mongo
+    networks:
+      - app-network
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: ride-scheduler
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongo-data:

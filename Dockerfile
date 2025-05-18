@@ -30,6 +30,8 @@ RUN npm install --omit=dev
 # Copy the built application from the builder stage
 COPY --from=builder /usr/src/app/dist ./dist
 
+COPY ./src/processor/workerWrapper.js ./dist/processor/workerWrapper.js
+
 # Copy the .env file for default values
 COPY .env ./.env
 
