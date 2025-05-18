@@ -1,6 +1,7 @@
 import { v4 } from 'uuid';
 import { AutoSchedulingRequest, TaskResponse } from '../interfaces';
 import { Mongo, MongoConfig } from './mongo';
+import { addMilliseconds, formatISO } from 'date-fns';
 
 export interface TaskConfig extends MongoConfig {
   readonly TASK_TTL: number,
@@ -40,13 +41,15 @@ export class TaskManager {
     );
 
     const now = new Date().getTime();
-    await collection.insertOne({
+    const doc = await collection.insertOne({
       taskId: taskId,
       requestBody: JSON.stringify(request),
       status: TaskStatus.pending,
       createdAt: now,
       updatedAt: now,
-    })
+    });
+
+    console.log(`🥭 Doc ${doc.insertedId.toString()} created for task ${taskId}, expire: ${formatISO(addMilliseconds(now, this.config.TASK_TTL))}`)
 
     return taskId;
   }

@@ -3,18 +3,28 @@ import { ProcessorConfig } from './processor';
 import { Mongo } from "./mongo";
 import { Task, TaskStatus } from './task';
 import { ObjectId } from 'mongodb';
-import { Scheduler, SchedulerConfig } from '../scheduler/scheduler';
+import { Scheduler } from '../scheduler/scheduler';
 import { AutoSchedulingRequest } from '../interfaces';
 
 export const filename = path.resolve(__filename);
 
-export async function process(config: ProcessorConfig, docId: string): Promise<string> {
-  console.log(`📝 Processing doc ${docId}...`);
+interface TaskArgs {
+  config: ProcessorConfig
+  docId: string;
+}
+
+export async function process(args: TaskArgs): Promise<string> {
+  const config = args.config;
+  const docId = args.docId;
+  console.log(`📝 Processing doc ${docId} ...`);
+  if (config.DEBUG_MODE) {
+    console.log("config:", config);
+  }
   const collection = await new Mongo(config).getCollection();
   const oid = new ObjectId(docId);
 
   // reading request
-  const doc = collection.findOne({ _id: oid });
+  const doc = await collection.findOne({ _id: oid });
   if (!doc) {
     throw new Error(`cannot find doc id ${docId}`);
   }
@@ -31,9 +41,11 @@ export async function process(config: ProcessorConfig, docId: string): Promise<s
     // writing back
     await collection.updateOne({ _id: oid },
       {
-        responseBody: JSON.stringify(response),
-        status: TaskStatus.completed,
-        updatedAt: new Date().getTime(),
+        $set: {
+          responseBody: JSON.stringify(response),
+          status: TaskStatus.completed,
+          updatedAt: new Date().getTime(),
+        }
       },
     );
 

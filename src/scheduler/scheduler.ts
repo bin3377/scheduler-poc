@@ -299,7 +299,7 @@ export class Scheduler {
       result: {
         error_code: 0,
         message: 'Successfully retrieved trips data.',
-        status: 'status',
+        status: 'success',
         data: {
           vehicle_trip_list: vs,
         }
