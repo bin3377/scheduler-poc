@@ -59,7 +59,7 @@ class context {
   }
 }
 
-enum MobilityAssistance {
+export enum MobilityAssistance {
   None = 0,
   Ambulatory = 1 << 0, // 0000 0001  1
   Wheelchair = 1 << 1, // 0000 0010  2
@@ -68,7 +68,7 @@ enum MobilityAssistance {
 }
 
 
-function parseMA(...args: string[]): MobilityAssistance {
+export function parseMA(...args: string[]): MobilityAssistance {
   function parse(str: string): MobilityAssistance {
     switch (str.toUpperCase()) {
       case 'STRETCHER':
@@ -79,10 +79,13 @@ function parseMA(...args: string[]): MobilityAssistance {
         return MobilityAssistance.Ambulatory;
     }
   }
+  if (args.length === 0 || (args.length === 1 && !args[0])) { // Handle empty or effectively empty array
+    return MobilityAssistance.Ambulatory;
+  }
   return args.map(parse).reduce((prev, current) => prev | current);
 }
 
-function priorityMa(ma: MobilityAssistance): number {
+export function priorityMa(ma: MobilityAssistance): number {
   if (ma & MobilityAssistance.Stretcher) {
     return 0;
   }
@@ -92,15 +95,17 @@ function priorityMa(ma: MobilityAssistance): number {
   return 2;
 }
 
-function codeMA(ma: MobilityAssistance): string {
+export function codeMA(ma: MobilityAssistance): string {
   let name = '';
   if (ma & MobilityAssistance.Stretcher) {
     name += 'GUR';
   }
   if (ma & MobilityAssistance.Wheelchair) {
     name += 'WC';
-  } else {
-    name += 'AMBI';
+  }
+  
+  if (!name) { // Only if no other MA specified, consider it AMBI
+    name = 'AMBI';
   }
   return name;
 }
@@ -308,7 +313,7 @@ export class Scheduler {
   }
 }
 
-class TripInfo {
+export class TripInfo {
   private readonly context: context
   readonly booking: Booking
 
